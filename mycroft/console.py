@@ -41,8 +41,8 @@ def main():
                              help="file in which to to store the model (default do not store a model)")
 
     train_parser.set_defaults(
-        func=lambda args: train(args.training, args.text_name, args.label_name, args.limit, args.batch_size,
-                                args.epochs, args.rnn_units, args.dropout, args.validation, args.model_filename))
+        func=lambda args: train(args.training, args.limit, args.validation, args.text_name, args.label_name,
+                                args.rnn_units, args.dropout, args.epochs, args.batch_size, args.model_filename))
 
     # Predict subcommand
     predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""
