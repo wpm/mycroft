@@ -31,11 +31,16 @@ class TextEmbeddingClassifier:
         self.class_names = class_names
 
     def __repr__(self):
-        return "Text classifier: %d classes" % self.classes
+        return "Text embedding classifier: embedding %d x %d, %d classes" % (
+        self.max_tokens_per_text, self.embedding_size, self.classes)
 
     @property
-    def max_tokens(self):
+    def max_tokens_per_text(self):
         return self.model.get_layer("rnn").input_shape[1]
+
+    @property
+    def embedding_size(self):
+        return self.model.get_layer("rnn").input_shape[2]
 
     @property
     def classes(self):
@@ -51,7 +56,7 @@ class TextEmbeddingClassifier:
         else:
             callbacks = None
 
-        x = numpy.stack([embeddings])
+        x = numpy.stack(list(embeddings))
         y = numpy.array(class_labels)
         history = self.model.fit(x, y, epochs=epochs, batch_size=batch_size, validation_split=validation,
                                  callbacks=callbacks)
@@ -64,12 +69,15 @@ class TextEmbeddingClassifier:
         return history.history[monitor]
 
     def predict(self, embeddings):
-        return self.model.predict(embeddings)
+        return self.model.predict(numpy.stack(list(embeddings)))
 
 
 class TextSetEmbedder:
     def __init__(self, text_parser):
         self.text_parser = text_parser
+
+    def __repr__(self):
+        return "Text set embedder: model %s, embedding size %d" % (self.text_parser.meta["name"], self.embedding_size)
 
     def __call__(self, texts, max_tokens_per_text=None):
         def padded_segment_embedding(parsed_text):

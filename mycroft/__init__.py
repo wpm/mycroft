@@ -42,7 +42,7 @@ def predict(test_filename, model_filename, text_name, limit):
     data = read_data_file(test_filename, limit)
     embedder = TextSetEmbedder(text_parser())
     model = TextEmbeddingClassifier.load_model(model_filename)
-    embeddings, _ = embedder(data[text_name], max_tokens_per_text=model.max_tokens)
+    embeddings, _ = embedder(data[text_name], max_tokens_per_text=model.max_tokens_per_text)
     label_probabilities = model.predict(embeddings)
     predictions = pandas.DataFrame(label_probabilities.reshape((len(data[text_name]), model.classes)),
                                    columns=model.class_names)
