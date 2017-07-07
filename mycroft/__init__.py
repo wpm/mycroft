@@ -1,6 +1,5 @@
 from __future__ import print_function
 
-import argparse
 from itertools import tee
 
 import h5py
@@ -38,7 +37,7 @@ def predict(test_filename, model_filename, text_name, limit):
     # Add the predictions to the input CSV and print it.
     predictions = pandas.DataFrame(label_probabilities.reshape((len(texts), len(categories))), columns=categories)
     data = data.join(predictions)
-    print(data.to_csv())
+    print(data.to_csv(index=False))
 
 
 def read_data_file(data_filename, limit):
@@ -108,37 +107,3 @@ def load_text_classifier_model(model_filename):
         categories = [name.decode("UTF-8") for name in list(m.attrs["categories"])]
     max_tokens = model.get_layer("rnn").input_shape[1]
     return model, categories, max_tokens
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Text Classifier")
-    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
-    parser.set_defaults(func=lambda _: parser.print_usage())
-
-    subparsers = parser.add_subparsers(title="Commands")
-
-    train_parser = subparsers.add_parser("train", description="Train a model")
-    train_parser.add_argument("training", help="training data")
-    train_parser.add_argument("--text-name", default="text", help="name of the text column (default 'text')")
-    train_parser.add_argument("--label-name", default="label", help="name of the label column (default 'label')")
-    train_parser.add_argument("--limit", type=int, help="limit the data to the specified length (default use all data)")
-    train_parser.add_argument("--batch-size", type=int, default=56, help="batch size (default 256)")
-    train_parser.add_argument("--epochs", type=int, default=10, help="training epochs (default 10)")
-    train_parser.add_argument("--rnn-units", type=int, default=128, help="RNN units (default 128)")
-    train_parser.add_argument("--dropout", type=float, default=0.2, help="Dropout rate (default 0.2)")
-    train_parser.add_argument("--validation", type=float, help="portion of data to use for validation (default none)")
-    train_parser.add_argument("--model-filename", help="file in which to to store the model")
-    train_parser.set_defaults(
-        func=lambda args: train(args.training, args.text_name, args.label_name, args.limit, args.batch_size,
-                                args.epochs, args.rnn_units, args.dropout, args.validation, args.model_filename))
-
-    predict_parser = subparsers.add_parser("predict", description="Use a model to predict labels")
-    predict_parser.add_argument("test", help="test data")
-    predict_parser.add_argument("model_filename", metavar="model-filename", help="file containing the trained model")
-    predict_parser.add_argument("--text-name", default="text", help="name of the text column (default 'text')")
-    predict_parser.add_argument("--limit", type=int,
-                                help="limit the data to the specified length (default use all data)")
-    predict_parser.set_defaults(func=lambda args: predict(args.test, args.model_filename, args.text_name, args.limit))
-
-    args = parser.parse_args()
-    args.func(args)
