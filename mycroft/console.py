@@ -31,12 +31,12 @@ def main():
     model_group = train_parser.add_argument_group("model",
                                                   description="Arguments for specifying the model configuration")
     model_group.add_argument("--rnn-units", metavar="N", type=int, default=128, help="RNN units (default 128)")
-    model_group.add_argument("--dropout", metavar="RATE", type=float, default=0.2, help="Dropout rate (default 0.2)")
+    model_group.add_argument("--dropout", metavar="RATE", type=float, default=0.5, help="Dropout rate (default 0.5)")
 
     train_group = train_parser.add_argument_group("training",
                                                   description="Arguments for controlling the training procedure")
     train_group.add_argument("--epochs", metavar="N", type=int, default=10, help="training epochs (default 10)")
-    train_group.add_argument("--batch-size", metavar="M", type=int, default=56, help="batch size (default 256)")
+    train_group.add_argument("--batch-size", metavar="M", type=int, default=256, help="batch size (default 256)")
     train_group.add_argument("--model-filename", metavar="FILENAME",
                              help="file in which to to store the model (default do not store a model)")
 
