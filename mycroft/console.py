@@ -5,7 +5,12 @@ from mycroft import __version__, train, predict, evaluate
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Text Classifier")
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     description=textwrap.dedent("""
+    Mycroft classifies text to categorical labels.
+                                         
+    The training data is a comma- or tab-delimited file with column of text and a column of labels.
+    The test data is in the same format without the labels."""))
     parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.set_defaults(func=lambda _: parser.print_usage())
 
@@ -13,8 +18,7 @@ def main():
 
     # Train subcommand
     train_parser = subparsers.add_parser("train", description=textwrap.dedent("""
-        Train a model to predict categorical labels from English text. The training data is a comma- or tab-delimited 
-        file with column of text and a column of labels. The training and optional validation loss and accuracy are
+        Train a model to predict labels for text. The training and optional validation loss and accuracy are
         printed for each epoch."""))
 
     data_group = train_parser.add_argument_group("data", description="Arguments for specifying the data to train on")
@@ -49,10 +53,10 @@ def main():
 
     # Predict subcommand
     predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""
-        Use a model to predict labels. The test data is a comma- or tab-delimited file with a column of texts. This
-        prints that file, adding columns containing predicted probabilities for each category."""))
+        Use a model to predict labels. This prints the test data, adding columns containing predicted probabilities for 
+        each category."""))
     predict_parser.add_argument("test", help="test data")
-    predict_parser.add_argument("model_filename", metavar="filename", help="file containing the trained model")
+    predict_parser.add_argument("model_filename", metavar="model", help="file containing the trained model")
     predict_parser.add_argument("--text-name", metavar="NAME", default="text",
                                 help="name of the text column (default 'text')")
     predict_parser.add_argument("--limit", metavar="N", type=int,
@@ -64,7 +68,7 @@ def main():
         Score the model's performance on a labeled data set. 
         The test data is a comma- or tab-delimited file with columns of texts and labels."""))
     evaluate_parser.add_argument("test", help="test data")
-    evaluate_parser.add_argument("model_filename", metavar="filename", help="file containing the trained model")
+    evaluate_parser.add_argument("model_filename", metavar="model", help="file containing the trained model")
     evaluate_parser.add_argument("--text-name", metavar="NAME", default="text",
                                  help="name of the text column (default 'text')")
     evaluate_parser.add_argument("--label-name", metavar="NAME", default="label",
