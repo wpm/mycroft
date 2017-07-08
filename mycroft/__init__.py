@@ -43,11 +43,7 @@ def train(training_filename, limit, validation, text_name, label_name,
 
 
 def predict(test_filename, model_filename, text_name, limit):
-    from model import TextSetEmbedder, TextEmbeddingClassifier
-    data = read_data_file(test_filename, limit)
-    embedder = TextSetEmbedder(text_parser())
-    model = TextEmbeddingClassifier.load_model(model_filename)
-    embeddings, _ = embedder(data[text_name], max_tokens_per_text=model.max_tokens_per_text)
+    data, embeddings, model = model_and_test_embeddings(limit, model_filename, test_filename, text_name)
     label_probabilities = model.predict(embeddings)
     predicted_label = label_probabilities.argmax(axis=1)
     predictions = pandas.DataFrame(label_probabilities.reshape((len(data[text_name]), model.classes)),
@@ -55,6 +51,21 @@ def predict(test_filename, model_filename, text_name, limit):
     predictions["predicted label"] = [model.class_names[i] for i in predicted_label]
     data = data.join(predictions)
     print(data.to_csv(index=False))
+
+
+def evaluate(test_filename, model_filename, text_name, label_name, limit):
+    data, embeddings, model = model_and_test_embeddings(limit, model_filename, test_filename, text_name)
+    print("\n" +
+          " - ".join("%s: %0.5f" % (name, score) for name, score in model.evaluate(embeddings, data[label_name])))
+
+
+def model_and_test_embeddings(limit, model_filename, test_filename, text_name):
+    from mycroft.model import TextSetEmbedder, TextEmbeddingClassifier
+    data = read_data_file(test_filename, limit)
+    embedder = TextSetEmbedder(text_parser())
+    model = TextEmbeddingClassifier.load_model(model_filename)
+    embeddings, _ = embedder(data[text_name], max_tokens_per_text=model.max_tokens_per_text)
+    return data, embeddings, model
 
 
 def read_data_file(data_filename, limit):

@@ -56,7 +56,7 @@ class TextEmbeddingClassifier:
         else:
             callbacks = None
 
-        x = numpy.stack(list(embeddings))
+        x = self.embeddings_matrix(embeddings)
         y = numpy.array(class_labels)
         history = self.model.fit(x, y, epochs=epochs, batch_size=batch_size, validation_split=validation,
                                  callbacks=callbacks)
@@ -70,7 +70,15 @@ class TextEmbeddingClassifier:
         return history
 
     def predict(self, embeddings):
-        return self.model.predict(numpy.stack(list(embeddings)))
+        return self.model.predict(self.embeddings_matrix(embeddings))
+
+    def evaluate(self, embeddings, class_labels):
+        metrics = self.model.evaluate(self.embeddings_matrix(embeddings), numpy.array(class_labels))
+        return list(zip(self.model.metrics_names, metrics))
+
+    @staticmethod
+    def embeddings_matrix(embeddings):
+        return numpy.stack(list(embeddings))
 
 
 class TextSetEmbedder:

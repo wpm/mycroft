@@ -1,7 +1,7 @@
 import argparse
 import textwrap
 
-from mycroft import __version__, train, predict
+from mycroft import __version__, train, predict, evaluate
 
 
 def main():
@@ -49,15 +49,30 @@ def main():
 
     # Predict subcommand
     predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""
-        Use a model to predict labels. The test data is a comma- or tab-delimited file with column of text. This
+        Use a model to predict labels. The test data is a comma- or tab-delimited file with a column of texts. This
         prints that file, adding columns containing predicted probabilities for each category."""))
     predict_parser.add_argument("test", help="test data")
     predict_parser.add_argument("model_filename", metavar="filename", help="file containing the trained model")
     predict_parser.add_argument("--text-name", metavar="NAME", default="text",
                                 help="name of the text column (default 'text')")
     predict_parser.add_argument("--limit", metavar="N", type=int,
-                                help="only predict this many samples (default use all the data)")
+                                help="only use this many samples (default use all the data)")
     predict_parser.set_defaults(func=lambda args: predict(args.test, args.model_filename, args.text_name, args.limit))
+
+    # Evaluate subcommand
+    evaluate_parser = subparsers.add_parser("evaluate", description=textwrap.dedent("""
+        Score the model's performance on a labeled data set. 
+        The test data is a comma- or tab-delimited file with columns of texts and labels."""))
+    evaluate_parser.add_argument("test", help="test data")
+    evaluate_parser.add_argument("model_filename", metavar="filename", help="file containing the trained model")
+    evaluate_parser.add_argument("--text-name", metavar="NAME", default="text",
+                                 help="name of the text column (default 'text')")
+    evaluate_parser.add_argument("--label-name", metavar="NAME", default="label",
+                                 help="name of the label column (default 'label')")
+    evaluate_parser.add_argument("--limit", metavar="N", type=int,
+                                 help="only use this many samples (default use all the data)")
+    evaluate_parser.set_defaults(
+        func=lambda args: evaluate(args.test, args.model_filename, args.text_name, args.label_name, args.limit))
 
     args = parser.parse_args()
     args.func(args)
