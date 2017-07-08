@@ -39,7 +39,7 @@ def train(training_filename, limit, validation, text_name, label_name,
     best_loss = min(losses)
     best_epoch = losses.index(best_loss)
     s = " - ".join(["%s: %0.5f" % (score, values[best_epoch]) for score, values in sorted(history.history.items())])
-    print("Best epoch %d of %d: %s" % (history.epoch[best_epoch], history.epoch[-1], s))
+    print("Best epoch %d of %d: %s" % (best_epoch + 1, epochs, s))
 
 
 def predict(test_filename, model_filename, text_name, limit):
