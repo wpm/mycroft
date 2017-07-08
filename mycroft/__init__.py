@@ -16,8 +16,9 @@ def text_parser(name="en"):
     return text_parser_singleton
 
 
-def train(training_filename, limit, validation, text_name, label_name, rnn_units, dropout, epochs, batch_size,
-          model_filename):
+def train(training_filename, limit, validation, text_name, label_name,
+          rnn_units, dropout, max_tokens,
+          epochs, batch_size, model_filename):
     from model import TextSetEmbedder, TextEmbeddingClassifier
 
     def preprocess_training_data():
@@ -29,9 +30,10 @@ def train(training_filename, limit, validation, text_name, label_name, rnn_units
     data = read_data_file(training_filename, limit)
     texts, classes, class_names = preprocess_training_data()
     embedder = TextSetEmbedder(text_parser())
-    embeddings, max_tokens_per_text = embedder(texts)
+    embeddings, max_tokens_per_text = embedder(texts, max_tokens_per_text=max_tokens)
     model = TextEmbeddingClassifier.create(max_tokens_per_text, embedder.embedding_size, rnn_units, dropout,
                                            class_names)
+    print(model)
     history = model.train(embeddings, classes, validation, epochs, batch_size, model_filename)
     losses = history.history[history.monitor]
     best_loss = min(losses)

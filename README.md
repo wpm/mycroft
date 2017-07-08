@@ -19,14 +19,11 @@ Subcommands enable you to train models and use them to make predictions on unlab
 Run `mycroft --help` for details about specific commands.
 
 Input data takes the form of comma-separated-value documents.
-Training data has the columns `text` and `label`.
-Test data takes the same form minus the `label` column.
+Training data has columns containing the text and the labels.
+Test data takes the same form minus the labels column.
 
 
 ## Classifier Model
-
-Text classification is framed as a supervised learning problem.
-The sample is English text and the label is a categorical class label.
 
 [GloVe](https://nlp.stanford.edu/projects/glove/) vectors are used to embed the text into matrices of size
 _maximum tokens × 300_, clipping or padding the first dimension for each individual text as needed.
