@@ -32,9 +32,12 @@ def train(training_filename, limit, validation, text_name, label_name, rnn_units
     embeddings, max_tokens_per_text = embedder(texts)
     model = TextEmbeddingClassifier.create(max_tokens_per_text, embedder.embedding_size, rnn_units, dropout,
                                            class_names)
-    losses = model.train(embeddings, classes, validation, epochs, batch_size, model_filename)
+    history = model.train(embeddings, classes, validation, epochs, batch_size, model_filename)
+    losses = history.history[history.monitor]
     best_loss = min(losses)
-    print("Best loss %0.5f in epoch %d of %d" % (best_loss, losses.index(best_loss) + 1, epochs))
+    best_epoch = losses.index(best_loss)
+    s = " - ".join(["%s: %0.5f" % (score, values[best_epoch]) for score, values in sorted(history.history.items())])
+    print("Best epoch %d of %d: %s" % (history.epoch[best_epoch], history.epoch[-1], s))
 
 
 def predict(test_filename, model_filename, text_name, limit):

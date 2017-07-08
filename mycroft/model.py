@@ -32,7 +32,7 @@ class TextEmbeddingClassifier:
 
     def __repr__(self):
         return "Text embedding classifier: embedding %d x %d, %d classes" % (
-        self.max_tokens_per_text, self.embedding_size, self.classes)
+            self.max_tokens_per_text, self.embedding_size, self.classes)
 
     @property
     def max_tokens_per_text(self):
@@ -66,7 +66,8 @@ class TextEmbeddingClassifier:
                 m.attrs["categories"] = numpy.array(
                     [numpy.string_(numpy.str_(label_name)) for label_name in self.class_names])
 
-        return history.history[monitor]
+        history.monitor = monitor
+        return history
 
     def predict(self, embeddings):
         return self.model.predict(numpy.stack(list(embeddings)))
