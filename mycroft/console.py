@@ -22,7 +22,7 @@ def main():
         printed for each epoch."""))
 
     data_group = train_parser.add_argument_group("data", description="Arguments for specifying the data to train on")
-    data_group.add_argument("training", help="training data")
+    data_group.add_argument("training", help="training data file")
     data_group.add_argument("--limit", metavar="N", type=int,
                             help="only train on this many samples (default use all the data)")
     data_group.add_argument("--validation", metavar="PORTION", type=float,
@@ -54,8 +54,8 @@ def main():
     # Predict subcommand
     predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""
         Use a model to predict labels. This prints the test data, adding columns containing predicted probabilities for 
-        each category."""))
-    predict_parser.add_argument("test", help="test data")
+        each category and the most probable category."""))
+    predict_parser.add_argument("test", help="test data file")
     predict_parser.add_argument("model_filename", metavar="model", help="file containing the trained model")
     predict_parser.add_argument("--text-name", metavar="NAME", default="text",
                                 help="name of the text column (default 'text')")
@@ -67,7 +67,7 @@ def main():
     evaluate_parser = subparsers.add_parser("evaluate", description=textwrap.dedent("""
         Score the model's performance on a labeled data set. 
         The test data is a comma- or tab-delimited file with columns of texts and labels."""))
-    evaluate_parser.add_argument("test", help="test data")
+    evaluate_parser.add_argument("test", help="labeled test data file")
     evaluate_parser.add_argument("model_filename", metavar="model", help="file containing the trained model")
     evaluate_parser.add_argument("--text-name", metavar="NAME", default="text",
                                  help="name of the text column (default 'text')")
