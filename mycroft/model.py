@@ -1,3 +1,5 @@
+import sys
+from io import StringIO
 from itertools import tee
 
 import h5py
@@ -21,8 +23,8 @@ class TextEmbeddingClassifier:
         model.add(
             Bidirectional(LSTM(rnn_units),
                           input_shape=(max_tokens_per_text, embedding_size), name="rnn"))
-        model.add(Dense(len(class_names), activation="softmax"))
-        model.add(Dropout(dropout))
+        model.add(Dense(len(class_names), activation="softmax", name="softmax"))
+        model.add(Dropout(dropout, name="dropout"))
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
         return cls(model, class_names)
 
@@ -31,8 +33,27 @@ class TextEmbeddingClassifier:
         self.class_names = class_names
 
     def __repr__(self):
-        return "Text embedding classifier: embedding %d x %d, %d classes" % (
-            self.max_tokens_per_text, self.embedding_size, self.classes)
+        return "Text embedding classifier: embedding %d x %d, %d classes, %d RNN units, dropout rate %0.2f" % (
+            self.max_tokens_per_text, self.embedding_size, self.classes, self.rnn_units, self.dropout)
+
+    def __str__(self):
+        return "%s\n\n%s" % (repr(self), self._model_topology())
+
+    def _model_topology(self):
+        # Keras' model summary prints to standard out.
+        old_stdout = sys.stdout
+        sys.stdout = s = StringIO()
+        self.model.summary()
+        sys.stdout = old_stdout
+        return s.getvalue()
+
+    @property
+    def rnn_units(self):
+        return self.model.get_layer("rnn").layer.units
+
+    @property
+    def dropout(self):
+        return self.model.get_layer("dropout").rate
 
     @property
     def max_tokens_per_text(self):

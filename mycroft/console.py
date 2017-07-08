@@ -1,7 +1,7 @@
 import argparse
 import textwrap
 
-from mycroft import __version__, train, predict, evaluate
+from mycroft import __version__, train, predict, evaluate, details
 
 
 def main():
@@ -77,6 +77,11 @@ def main():
                                  help="only use this many samples (default use all the data)")
     evaluate_parser.set_defaults(
         func=lambda args: evaluate(args.test, args.model_filename, args.text_name, args.label_name, args.limit))
+
+    # Details subcommand
+    details_parser = subparsers.add_parser("details", description="Show details of a trained model.")
+    details_parser.add_argument("model_filename", metavar="model", help="file containing the trained model")
+    details_parser.set_defaults(func=lambda args: details(args.model_filename))
 
     args = parser.parse_args()
     args.func(args)

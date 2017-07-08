@@ -33,7 +33,7 @@ def train(training_filename, limit, validation, text_name, label_name,
     embeddings, max_tokens_per_text = embedder(texts, max_tokens_per_text=max_tokens)
     model = TextEmbeddingClassifier.create(max_tokens_per_text, embedder.embedding_size, rnn_units, dropout,
                                            class_names)
-    print(model)
+    print(repr(model))
     history = model.train(embeddings, classes, validation, epochs, batch_size, model_filename)
     losses = history.history[history.monitor]
     best_loss = min(losses)
@@ -66,6 +66,11 @@ def model_and_test_embeddings(limit, model_filename, test_filename, text_name):
     model = TextEmbeddingClassifier.load_model(model_filename)
     embeddings, _ = embedder(data[text_name], max_tokens_per_text=model.max_tokens_per_text)
     return data, embeddings, model
+
+
+def details(model_filename):
+    from mycroft.model import TextEmbeddingClassifier
+    print(TextEmbeddingClassifier.load_model(model_filename))
 
 
 def read_data_file(data_filename, limit):
