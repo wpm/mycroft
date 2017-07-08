@@ -44,8 +44,10 @@ def predict(test_filename, model_filename, text_name, limit):
     model = TextEmbeddingClassifier.load_model(model_filename)
     embeddings, _ = embedder(data[text_name], max_tokens_per_text=model.max_tokens_per_text)
     label_probabilities = model.predict(embeddings)
+    predicted_label = label_probabilities.argmax(axis=1)
     predictions = pandas.DataFrame(label_probabilities.reshape((len(data[text_name]), model.classes)),
                                    columns=model.class_names)
+    predictions["predicted label"] = [model.class_names[i] for i in predicted_label]
     data = data.join(predictions)
     print(data.to_csv(index=False))
 
