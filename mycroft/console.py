@@ -1,7 +1,7 @@
 import argparse
 import textwrap
 
-from mycroft import __version__, train, predict, evaluate, details
+from mycroft import __version__, train, predict, evaluate, details, demo
 
 
 def main():
@@ -92,6 +92,12 @@ def main():
     details_parser = subparsers.add_parser("details", description="Show details of a trained model.")
     details_parser.add_argument("model_filename", metavar="model", help="file containing the trained model")
     details_parser.set_defaults(func=lambda args: details(args.model_filename))
+
+    # Demo subcommand
+    demo_parser = subparsers.add_parser("demo", description="Run a demo on 20 newsgroups data.")
+    demo_parser.add_argument("--output-directory", metavar="DIRECTORY", default=".",
+                             help="where to write files (default working directory)")
+    demo_parser.set_defaults(func=lambda args: demo(args.output_directory))
 
     args = parser.parse_args()
     args.func(args)

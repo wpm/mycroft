@@ -1,7 +1,10 @@
 from __future__ import print_function
 
+import os
+
 import numpy
 import pandas
+from sklearn.datasets import fetch_20newsgroups
 
 __version__ = "1.0.0"
 
@@ -61,10 +64,10 @@ def evaluate(test_filename, model_filename, text_name, label_name, limit, langua
 
 
 def model_and_test_embeddings(limit, model_filename, test_filename, text_name, language_model):
-    from mycroft.model import TextSetEmbedder, TextEmbeddingClassifier
+    from mycroft.model import TextEmbeddingClassifier, TextSetEmbedder
+    model = TextEmbeddingClassifier.load_model(model_filename)
     data = read_data_file(test_filename, limit)
     embedder = TextSetEmbedder(text_parser(language_model))
-    model = TextEmbeddingClassifier.load_model(model_filename)
     embeddings, _ = embedder(data[text_name], max_tokens_per_text=model.max_tokens_per_text)
     return data, embeddings, model
 
@@ -74,5 +77,28 @@ def details(model_filename):
     print(TextEmbeddingClassifier.load_model(model_filename))
 
 
+def demo(output_directory):
+    def create_data_file(partition, filename):
+        data = pandas.DataFrame(
+            {"text": partition.data, "label": [partition.target_names[target] for target in partition.target]})
+        filename = os.path.join(output_directory, filename)
+        data.to_csv(filename, index=False)
+        return filename
+
+    print("Download 20 Newsgroups data.")
+    newsgroups_train = fetch_20newsgroups(subset="train", remove=("headers", "footers", "quotes"))
+    newsgroups_test = fetch_20newsgroups(subset="test", remove=("headers", "footers", "quotes"))
+    print("Create training and test files: train.csv and test.csv.")
+    train_filename = create_data_file(newsgroups_train, "train.csv")
+    test_filename = create_data_file(newsgroups_test, "test.csv")
+    model_filename = os.path.join(output_directory, "model.hd5")
+    print("Train a model.")
+    print("\tmycroft train %s --model-filename %s" % (train_filename, model_filename))
+    train(train_filename, None, 0.2, "text", "label", 128, 0.5, None, "en", 10, 256, model_filename)
+    print("Evaluate it on the test data.")
+    print("\tmycroft evaluate %s --model-filename %s" % (test_filename, model_filename))
+    evaluate(test_filename, model_filename, "test", "label", None, "en")
+
+
 def read_data_file(data_filename, limit):
-    return pandas.read_csv(data_filename, sep=None, engine="python")[:limit]
+    return pandas.read_csv(data_filename, sep=None, engine="python").dropna()[:limit]

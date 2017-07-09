@@ -33,7 +33,7 @@ setup(
     },
     author="W.P. McNeill",
     author_email="billmcn@gmail.com",
-    description="Text classifier", install_requires=["h5py", "keras", "numpy", "pandas", "spacy"],
+    description="Text classifier", install_requires=["h5py", "keras", "numpy", "pandas", "spacy", "scikit-learn"],
     cmdclass={
         "develop": PostDevelopCommand,
         "install": PostInstallCommand
