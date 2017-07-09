@@ -39,6 +39,10 @@ def main():
     model_group.add_argument("--max-tokens", metavar="M", type=int,
                              help="Maximum number of tokens to embed (default longest text in the training data)")
 
+    language_group = train_parser.add_argument_group("language",
+                                                     description="Arguments for controlling language processing")
+    language_group.add_argument("--language-model", default="en", help="the spaCy language model to use (default 'en')")
+
     train_group = train_parser.add_argument_group("training",
                                                   description="Arguments for controlling the training procedure")
     train_group.add_argument("--epochs", metavar="N", type=int, default=10, help="training epochs (default 10)")
@@ -48,8 +52,9 @@ def main():
 
     train_parser.set_defaults(
         func=lambda args: train(args.training, args.limit, args.validation, args.text_name, args.label_name,
-                                args.rnn_units, args.dropout, args.max_tokens, args.epochs, args.batch_size,
-                                args.model_filename))
+                                args.rnn_units, args.dropout, args.max_tokens,
+                                args.language_model,
+                                args.epochs, args.batch_size, args.model_filename))
 
     # Predict subcommand
     predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""
@@ -61,7 +66,9 @@ def main():
                                 help="name of the text column (default 'text')")
     predict_parser.add_argument("--limit", metavar="N", type=int,
                                 help="only use this many samples (default use all the data)")
-    predict_parser.set_defaults(func=lambda args: predict(args.test, args.model_filename, args.text_name, args.limit))
+    predict_parser.add_argument("--language-model", default="en", help="the spaCy language model to use (default 'en')")
+    predict_parser.set_defaults(
+        func=lambda args: predict(args.test, args.model_filename, args.text_name, args.limit, args.language_model))
 
     # Evaluate subcommand
     evaluate_parser = subparsers.add_parser("evaluate", description=textwrap.dedent("""
@@ -75,8 +82,11 @@ def main():
                                  help="name of the label column (default 'label')")
     evaluate_parser.add_argument("--limit", metavar="N", type=int,
                                  help="only use this many samples (default use all the data)")
+    evaluate_parser.add_argument("--language-model", default="en",
+                                 help="the spaCy language model to use (default 'en')")
     evaluate_parser.set_defaults(
-        func=lambda args: evaluate(args.test, args.model_filename, args.text_name, args.label_name, args.limit))
+        func=lambda args: evaluate(args.test, args.model_filename, args.text_name, args.label_name, args.limit,
+                                   args.language_model))
 
     # Details subcommand
     details_parser = subparsers.add_parser("details", description="Show details of a trained model.")

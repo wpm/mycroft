@@ -18,6 +18,7 @@ def text_parser(name="en"):
 
 def train(training_filename, limit, validation, text_name, label_name,
           rnn_units, dropout, max_tokens,
+          language_model,
           epochs, batch_size, model_filename):
     from mycroft.model import TextSetEmbedder, TextEmbeddingClassifier
 
@@ -29,7 +30,7 @@ def train(training_filename, limit, validation, text_name, label_name,
 
     data = read_data_file(training_filename, limit)
     texts, classes, class_names = preprocess_training_data()
-    embedder = TextSetEmbedder(text_parser())
+    embedder = TextSetEmbedder(text_parser(language_model))
     embeddings, max_tokens_per_text = embedder(texts, max_tokens_per_text=max_tokens)
     model = TextEmbeddingClassifier.create(max_tokens_per_text, embedder.embedding_size, rnn_units, dropout,
                                            class_names)
@@ -42,8 +43,8 @@ def train(training_filename, limit, validation, text_name, label_name,
     print("Best epoch %d of %d: %s" % (best_epoch + 1, epochs, s))
 
 
-def predict(test_filename, model_filename, text_name, limit):
-    data, embeddings, model = model_and_test_embeddings(limit, model_filename, test_filename, text_name)
+def predict(test_filename, model_filename, text_name, limit, language_model):
+    data, embeddings, model = model_and_test_embeddings(limit, model_filename, test_filename, text_name, language_model)
     label_probabilities = model.predict(embeddings)
     predicted_label = label_probabilities.argmax(axis=1)
     predictions = pandas.DataFrame(label_probabilities.reshape((len(data[text_name]), model.classes)),
@@ -53,16 +54,16 @@ def predict(test_filename, model_filename, text_name, limit):
     print(data.to_csv(index=False))
 
 
-def evaluate(test_filename, model_filename, text_name, label_name, limit):
-    data, embeddings, model = model_and_test_embeddings(limit, model_filename, test_filename, text_name)
+def evaluate(test_filename, model_filename, text_name, label_name, limit, language_model):
+    data, embeddings, model = model_and_test_embeddings(limit, model_filename, test_filename, text_name, language_model)
     print("\n" +
           " - ".join("%s: %0.5f" % (name, score) for name, score in model.evaluate(embeddings, data[label_name])))
 
 
-def model_and_test_embeddings(limit, model_filename, test_filename, text_name):
+def model_and_test_embeddings(limit, model_filename, test_filename, text_name, language_model):
     from mycroft.model import TextSetEmbedder, TextEmbeddingClassifier
     data = read_data_file(test_filename, limit)
-    embedder = TextSetEmbedder(text_parser())
+    embedder = TextSetEmbedder(text_parser(language_model))
     model = TextEmbeddingClassifier.load_model(model_filename)
     embeddings, _ = embedder(data[text_name], max_tokens_per_text=model.max_tokens_per_text)
     return data, embeddings, model
