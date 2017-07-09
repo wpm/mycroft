@@ -19,7 +19,7 @@ def text_parser(name="en"):
 def train(training_filename, limit, validation, text_name, label_name,
           rnn_units, dropout, max_tokens,
           epochs, batch_size, model_filename):
-    from model import TextSetEmbedder, TextEmbeddingClassifier
+    from mycroft.model import TextSetEmbedder, TextEmbeddingClassifier
 
     def preprocess_training_data():
         data[label_name] = data[label_name].astype("category")
