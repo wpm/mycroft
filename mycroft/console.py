@@ -1,7 +1,11 @@
 import argparse
+import os
 import textwrap
 
-from mycroft import __version__, train, predict, evaluate, details, demo
+import pandas
+from sklearn.datasets import fetch_20newsgroups
+
+from mycroft import __version__, train, predict, evaluate, details
 
 
 def main():
@@ -56,37 +60,34 @@ def main():
                                 args.language_model,
                                 args.epochs, args.batch_size, args.model_filename))
 
+    shared_arguments = argparse.ArgumentParser(add_help=False)
+    shared_arguments.add_argument("test", help="test data file")
+    shared_arguments.add_argument("model_filename", metavar="model", help="file containing the trained model")
+    shared_arguments.add_argument("--batch-size", metavar="M", type=int, default=256, help="batch size (default 256)")
+    shared_arguments.add_argument("--limit", metavar="N", type=int,
+                                  help="only use this many samples (default use all the data)")
+    shared_arguments.add_argument("--language-model", default="en",
+                                  help="the spaCy language model to use (default 'en')")
+    shared_arguments.add_argument("--text-name", metavar="NAME", default="text",
+                                  help="name of the text column (default 'text')")
+
     # Predict subcommand
-    predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""
+    predict_parser = subparsers.add_parser("predict", parents=[shared_arguments], description=textwrap.dedent("""
         Use a model to predict labels. This prints the test data, adding columns containing predicted probabilities for 
         each category and the most probable category."""))
-    predict_parser.add_argument("test", help="test data file")
-    predict_parser.add_argument("model_filename", metavar="model", help="file containing the trained model")
-    predict_parser.add_argument("--text-name", metavar="NAME", default="text",
-                                help="name of the text column (default 'text')")
-    predict_parser.add_argument("--limit", metavar="N", type=int,
-                                help="only use this many samples (default use all the data)")
-    predict_parser.add_argument("--language-model", default="en", help="the spaCy language model to use (default 'en')")
     predict_parser.set_defaults(
-        func=lambda args: predict(args.test, args.model_filename, args.text_name, args.limit, args.language_model))
+        func=lambda args: predict(args.test, args.model_filename, args.batch_size, args.text_name, args.limit,
+                                  args.language_model))
 
     # Evaluate subcommand
-    evaluate_parser = subparsers.add_parser("evaluate", description=textwrap.dedent("""
+    evaluate_parser = subparsers.add_parser("evaluate", parents=[shared_arguments], description=textwrap.dedent("""
         Score the model's performance on a labeled data set. 
         The test data is a comma- or tab-delimited file with columns of texts and labels."""))
-    evaluate_parser.add_argument("test", help="labeled test data file")
-    evaluate_parser.add_argument("model_filename", metavar="model", help="file containing the trained model")
-    evaluate_parser.add_argument("--text-name", metavar="NAME", default="text",
-                                 help="name of the text column (default 'text')")
     evaluate_parser.add_argument("--label-name", metavar="NAME", default="label",
                                  help="name of the label column (default 'label')")
-    evaluate_parser.add_argument("--limit", metavar="N", type=int,
-                                 help="only use this many samples (default use all the data)")
-    evaluate_parser.add_argument("--language-model", default="en",
-                                 help="the spaCy language model to use (default 'en')")
     evaluate_parser.set_defaults(
-        func=lambda args: evaluate(args.test, args.model_filename, args.text_name, args.label_name, args.limit,
-                                   args.language_model))
+        func=lambda args: evaluate(args.test, args.model_filename, args.batch_size, args.text_name, args.label_name,
+                                   args.limit, args.language_model))
 
     # Details subcommand
     details_parser = subparsers.add_parser("details", description="Show details of a trained model.")
@@ -95,9 +96,35 @@ def main():
 
     # Demo subcommand
     demo_parser = subparsers.add_parser("demo", description="Run a demo on 20 newsgroups data.")
+    demo_parser.add_argument("--limit", metavar="N", type=int,
+                             help="only use this many samples (default use all the data)")
     demo_parser.add_argument("--output-directory", metavar="DIRECTORY", default=".",
                              help="where to write files (default working directory)")
-    demo_parser.set_defaults(func=lambda args: demo(args.output_directory))
+    demo_parser.set_defaults(func=lambda args: demo(args.output_directory, args.limit))
 
     args = parser.parse_args()
     args.func(args)
+
+
+def demo(output_directory, limit):
+    def create_data_file(partition, filename):
+        # TODO Drop the really long texts because they take up too much memory.
+        data = pandas.DataFrame(
+            {"text": partition.data,
+             "label": [partition.target_names[target] for target in partition.target]}).dropna()[:limit]
+        filename = os.path.join(output_directory, filename)
+        data.to_csv(filename, index=False)
+        return filename
+
+    print("Download 20 Newsgroups data and create train.csv and test.csv.")
+    newsgroups_train = fetch_20newsgroups(subset="train", remove=("headers", "footers", "quotes"))
+    newsgroups_test = fetch_20newsgroups(subset="test", remove=("headers", "footers", "quotes"))
+    train_filename = create_data_file(newsgroups_train, "train.csv")
+    test_filename = create_data_file(newsgroups_test, "test.csv")
+    model_filename = os.path.join(output_directory, "model.hd5")
+    print("Train a model.")
+    print("mycroft train %s --model-filename %s" % (train_filename, model_filename))
+    train(train_filename, None, 0.2, "text", "label", 128, 0.5, None, "en", 10, 256, model_filename)
+    print("Evaluate it on the test data.")
+    print("mycroft evaluate %s --model-filename %s" % (test_filename, model_filename))
+    evaluate(test_filename, model_filename, 256, "text", "label", None, "en")

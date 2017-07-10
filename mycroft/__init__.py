@@ -1,10 +1,7 @@
 from __future__ import print_function
 
-import os
-
 import numpy
 import pandas
-from sklearn.datasets import fetch_20newsgroups
 
 __version__ = "1.0.0"
 
@@ -19,26 +16,45 @@ def text_parser(name="en"):
     return text_parser_singleton
 
 
-def train(training_filename, limit, validation, text_name, label_name,
-          rnn_units, dropout, max_tokens,
+def train(training_filename, limit, validation_fraction, text_name, label_name,
+          rnn_units, dropout, tokens_per_text,
           language_model,
           epochs, batch_size, model_filename):
-    from mycroft.model import TextSetEmbedder, TextEmbeddingClassifier
+    from mycroft.model import TextEmbeddingClassifier
+    from data import EmbeddingsGenerator
 
-    def preprocess_training_data():
+    def preprocess_data():
+        data = read_data_file(training_filename, limit)
         data[label_name] = data[label_name].astype("category")
         labels = numpy.array(data[label_name].cat.codes)
         label_names = data[label_name].cat.categories
         return data[text_name], labels, label_names
 
-    data = read_data_file(training_filename, limit)
-    texts, classes, class_names = preprocess_training_data()
-    embedder = TextSetEmbedder(text_parser(language_model))
-    embeddings, max_tokens_per_text = embedder(texts, max_tokens_per_text=max_tokens)
-    model = TextEmbeddingClassifier.create(max_tokens_per_text, embedder.embedding_size, rnn_units, dropout,
-                                           class_names)
+    def partition_data():
+        if validation_fraction:
+            m = int((1 - validation_fraction) * len(texts))
+            training_texts, training_labels = texts[:m], labels[:m]
+            validation_texts, validation_labels = texts[m:], labels[m:]
+            validation = EmbeddingsGenerator(validation_texts, tokens_per_text, batch_size, validation_labels, parser)
+        else:
+            training_texts, training_labels = texts, labels
+            validation = None
+        training = EmbeddingsGenerator(training_texts, tokens_per_text, batch_size, training_labels, parser)
+        return training, validation
+
+    parser = text_parser(language_model)
+    texts, labels, label_names = preprocess_data()
+    if tokens_per_text is None:
+        tokens_per_text = EmbeddingsGenerator.maximum_tokens_per_text(texts, parser)
+    training, validation = partition_data()
+
+    model = TextEmbeddingClassifier.create(tokens_per_text, parser.vocab.vectors_length, rnn_units, dropout,
+                                           label_names)
     print(repr(model))
-    history = model.train(embeddings, classes, validation, epochs, batch_size, model_filename)
+    print(training)
+    if validation is not None:
+        print(validation)
+    history = model.train(training, validation, epochs, model_filename)
     losses = history.history[history.monitor]
     best_loss = min(losses)
     best_epoch = losses.index(best_loss)
@@ -46,58 +62,42 @@ def train(training_filename, limit, validation, text_name, label_name,
     print("Best epoch %d of %d: %s" % (best_epoch + 1, epochs, s))
 
 
-def predict(test_filename, model_filename, text_name, limit, language_model):
-    data, embeddings, model = model_and_test_embeddings(limit, model_filename, test_filename, text_name, language_model)
+def predict(test_filename, model_filename, batch_size, text_name, limit, language_model):
+    data, embeddings, model = model_and_test_embeddings(limit, model_filename, test_filename, batch_size, text_name,
+                                                        None, language_model)
     label_probabilities = model.predict(embeddings)
     predicted_label = label_probabilities.argmax(axis=1)
-    predictions = pandas.DataFrame(label_probabilities.reshape((len(data[text_name]), model.classes)),
+    predictions = pandas.DataFrame(label_probabilities.reshape((len(data[text_name]), model.num_labels)),
                                    columns=model.class_names)
     predictions["predicted label"] = [model.class_names[i] for i in predicted_label]
     data = data.join(predictions)
     print(data.to_csv(index=False))
 
 
-def evaluate(test_filename, model_filename, text_name, label_name, limit, language_model):
-    data, embeddings, model = model_and_test_embeddings(limit, model_filename, test_filename, text_name, language_model)
+def evaluate(test_filename, model_filename, batch_size, text_name, label_name, limit, language_model):
+    data, embeddings, model = model_and_test_embeddings(limit, model_filename, test_filename, batch_size, text_name,
+                                                        label_name, language_model)
     print("\n" +
           " - ".join("%s: %0.5f" % (name, score) for name, score in model.evaluate(embeddings, data[label_name])))
 
 
-def model_and_test_embeddings(limit, model_filename, test_filename, text_name, language_model):
-    from mycroft.model import TextEmbeddingClassifier, TextSetEmbedder
+def model_and_test_embeddings(limit, model_filename, test_filename, batch_size, text_name, label_name, language_model):
+    from mycroft.model import TextEmbeddingClassifier
+    from data import EmbeddingsGenerator
     model = TextEmbeddingClassifier.load_model(model_filename)
     data = read_data_file(test_filename, limit)
-    embedder = TextSetEmbedder(text_parser(language_model))
-    embeddings, _ = embedder(data[text_name], max_tokens_per_text=model.max_tokens_per_text)
+    if label_name is None:
+        labels = None
+    else:
+        labels = data[label_name]
+    embeddings = EmbeddingsGenerator(data[text_name], model.tokens_per_text, batch_size, labels=labels,
+                                     text_parser=text_parser(language_model))
     return data, embeddings, model
 
 
 def details(model_filename):
     from mycroft.model import TextEmbeddingClassifier
     print(TextEmbeddingClassifier.load_model(model_filename))
-
-
-def demo(output_directory):
-    def create_data_file(partition, filename):
-        data = pandas.DataFrame(
-            {"text": partition.data, "label": [partition.target_names[target] for target in partition.target]})
-        filename = os.path.join(output_directory, filename)
-        data.to_csv(filename, index=False)
-        return filename
-
-    print("Download 20 Newsgroups data.")
-    newsgroups_train = fetch_20newsgroups(subset="train", remove=("headers", "footers", "quotes"))
-    newsgroups_test = fetch_20newsgroups(subset="test", remove=("headers", "footers", "quotes"))
-    print("Create training and test files: train.csv and test.csv.")
-    train_filename = create_data_file(newsgroups_train, "train.csv")
-    test_filename = create_data_file(newsgroups_test, "test.csv")
-    model_filename = os.path.join(output_directory, "model.hd5")
-    print("Train a model.")
-    print("\tmycroft train %s --model-filename %s" % (train_filename, model_filename))
-    train(train_filename, None, 0.2, "text", "label", 128, 0.5, None, "en", 10, 256, model_filename)
-    print("Evaluate it on the test data.")
-    print("\tmycroft evaluate %s --model-filename %s" % (test_filename, model_filename))
-    evaluate(test_filename, model_filename, "test", "label", None, "en")
 
 
 def read_data_file(data_filename, limit):
