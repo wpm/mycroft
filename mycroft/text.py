@@ -1,9 +1,20 @@
+"""
+Natural language processing components.
+"""
 from math import ceil
 
 import numpy
 from cytoolz import partition_all
 
-from mycroft import text_parser
+text_parser_singleton = None
+
+
+def text_parser(name="en"):
+    global text_parser_singleton
+    if text_parser_singleton is None:
+        import spacy
+        text_parser_singleton = spacy.load(name, tagger=None, parser=None, entity=None)
+    return text_parser_singleton
 
 
 class EmbeddingsGenerator:

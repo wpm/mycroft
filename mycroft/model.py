@@ -1,3 +1,4 @@
+"""Machine learning components"""
 import sys
 from io import StringIO
 
@@ -12,9 +13,7 @@ class TextEmbeddingClassifier:
     @classmethod
     def create(cls, tokens_per_text, embedding_size, rnn_units, dropout, label_names):
         model = Sequential()
-        model.add(
-            Bidirectional(LSTM(rnn_units),
-                          input_shape=(tokens_per_text, embedding_size), name="rnn"))
+        model.add(Bidirectional(LSTM(rnn_units), input_shape=(tokens_per_text, embedding_size), name="rnn"))
         model.add(Dense(len(label_names), activation="softmax", name="softmax"))
         model.add(Dropout(dropout, name="dropout"))
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
