@@ -146,7 +146,6 @@ def details_command(args):
 
 def demo_command(args):
     def create_data_file(partition, filename):
-        # TODO Drop the really long texts because they take up too much memory.
         data = pandas.DataFrame(
             {"text": partition.data,
              "label": [partition.target_names[target] for target in partition.target]}).dropna()[:args.limit]
@@ -161,9 +160,9 @@ def demo_command(args):
     test_filename = create_data_file(newsgroups_test, "test.csv")
     model_filename = os.path.join(args.output_directory, "model.hd5")
     print("Train a model.\n")
-    print("mycroft train %s --model-filename %s --max-tokens 200\n" % (train_filename, model_filename))
+    print("mycroft train %s --model-filename %s --max-tokens 1000\n" % (train_filename, model_filename))
     training_args = argparse.Namespace(training=train_filename, limit=None, text_name="text", label_name="label",
-                                       validation=0.2, rnn_units=128, dropout=0.5, max_tokens=200,
+                                       validation=0.2, rnn_units=128, dropout=0.5, max_tokens=1000,
                                        language_model="en", epochs=args.epochs, batch_size=256,
                                        model_filename=model_filename)
     # noinspection PyTypeChecker
