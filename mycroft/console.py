@@ -46,7 +46,7 @@ def main():
                                                   description="Arguments for specifying the model configuration")
     model_group.add_argument("--rnn-units", metavar="N", type=int, default=128, help="RNN units (default 128)")
     model_group.add_argument("--dropout", metavar="RATE", type=float, default=0.5, help="Dropout rate (default 0.5)")
-    model_group.add_argument("--msx-tokens", metavar="M", type=int,
+    model_group.add_argument("--max-tokens", metavar="M", type=int,
                              help="Maximum number of tokens to embed (default longest text in the training data)")
 
     language_group = train_parser.add_argument_group("language",
