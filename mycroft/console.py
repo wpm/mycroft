@@ -4,7 +4,6 @@ Command line interface to the text classifier.
 from __future__ import print_function
 
 import argparse
-import os
 import textwrap
 
 import numpy
@@ -12,7 +11,7 @@ import pandas
 from sklearn.datasets import fetch_20newsgroups
 
 from mycroft import __version__
-from mycroft.api import train, predict, evaluate
+from mycroft.text import TextSequenceEmbedder
 
 
 def main():
@@ -47,29 +46,29 @@ def main():
                                                   description="Arguments for specifying the model configuration")
     model_group.add_argument("--rnn-units", metavar="N", type=int, default=128, help="RNN units (default 128)")
     model_group.add_argument("--dropout", metavar="RATE", type=float, default=0.5, help="Dropout rate (default 0.5)")
-    model_group.add_argument("--max-tokens", metavar="M", type=int,
+    model_group.add_argument("--msx-tokens", metavar="M", type=int,
                              help="Maximum number of tokens to embed (default longest text in the training data)")
 
     language_group = train_parser.add_argument_group("language",
                                                      description="Arguments for controlling language processing")
+    language_group.add_argument("--vocabulary-size", default=20000,
+                                help="number of words in the vocabulary (default 20000)")
     language_group.add_argument("--language-model", default="en", help="the spaCy language model to use (default 'en')")
 
     train_group = train_parser.add_argument_group("training",
                                                   description="Arguments for controlling the training procedure")
     train_group.add_argument("--epochs", metavar="N", type=int, default=10, help="training epochs (default 10)")
     train_group.add_argument("--batch-size", metavar="M", type=int, default=256, help="batch size (default 256)")
-    train_group.add_argument("--model-filename", metavar="FILENAME",
-                             help="file in which to to store the model (default do not store a model)")
+    train_group.add_argument("--model-directory", metavar="FILENAME",
+                             help="directory in which to to store the model (default do not store a model)")
     train_parser.set_defaults(func=train_command)
 
     shared_arguments = argparse.ArgumentParser(add_help=False)
     shared_arguments.add_argument("test", help="test data file")
-    shared_arguments.add_argument("model_filename", metavar="model", help="file containing the trained model")
+    shared_arguments.add_argument("model_directory", metavar="model", help="directory containing the trained model")
     shared_arguments.add_argument("--batch-size", metavar="M", type=int, default=256, help="batch size (default 256)")
     shared_arguments.add_argument("--limit", metavar="N", type=int,
                                   help="only use this many samples (default use all the data)")
-    shared_arguments.add_argument("--language-model", default="en",
-                                  help="the spaCy language model to use (default 'en')")
     shared_arguments.add_argument("--text-name", metavar="NAME", default="text",
                                   help="name of the text column (default 'text')")
 
@@ -89,16 +88,11 @@ def main():
 
     # Details subcommand
     details_parser = subparsers.add_parser("details", description="Show details_command of a trained model.")
-    details_parser.add_argument("model_filename", metavar="model", help="file containing the trained model")
+    details_parser.add_argument("model_directory", metavar="model", help="directory containing the trained model")
     details_parser.set_defaults(func=details_command)
 
     # Demo subcommand
     demo_parser = subparsers.add_parser("demo", description="Run a demo_command on 20 newsgroups data.")
-    demo_parser.add_argument("--limit", metavar="N", type=int,
-                             help="only use this many samples (default use all the data)")
-    demo_parser.add_argument("--epochs", metavar="N", type=int, default=10, help="training epochs (default 10)")
-    demo_parser.add_argument("--output-directory", metavar="DIRECTORY", default=".",
-                             help="where to write files (default working directory)")
     demo_parser.set_defaults(func=demo_command)
 
     args = parser.parse_args()
@@ -106,11 +100,12 @@ def main():
 
 
 def train_command(args):
+    from mycroft.model import TextEmbeddingClassifier
+
     texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.text_name, args.label_name)
-    history = train(texts, labels, label_names, args.validation,
-                    args.rnn_units, args.dropout, args.max_tokens,
-                    args.language_model,
-                    args.epochs, args.batch_size, args.model_filename)
+    embedder = TextSequenceEmbedder(args.vocabulary_size, args.max_tokens, args.language_model)
+    model = TextEmbeddingClassifier.create(embedder, args.rnn_units, args.dropout, label_names)
+    history = model.train(texts, labels, args.epochs, args.batch_size, args.validation, args.model_directory)
     losses = history.history[history.monitor]
     best_loss = min(losses)
     best_epoch = losses.index(best_loss)
@@ -120,9 +115,10 @@ def train_command(args):
 
 def predict_command(args):
     from mycroft.model import TextEmbeddingClassifier
-    model = TextEmbeddingClassifier.load_model(args.model_filename)
+
+    model = TextEmbeddingClassifier.load_model(args.model_directory)
     data = read_data_file(args.test, args.limit)
-    label_probabilities, predicted_labels = predict(model, data[args.text_name], args.batch_size, args.language_model)
+    label_probabilities, predicted_labels = model.predict(data[args.text_name], args.batch_size)
     predictions = pandas.DataFrame(label_probabilities.reshape((len(data), model.num_labels)),
                                    columns=model.label_names)
     predictions["predicted label"] = [model.label_names[i] for i in predicted_labels]
@@ -132,10 +128,11 @@ def predict_command(args):
 
 def evaluate_command(args):
     from mycroft.model import TextEmbeddingClassifier
-    model = TextEmbeddingClassifier.load_model(args.model_filename)
+
+    model = TextEmbeddingClassifier.load_model(args.model_directory)
     texts, labels, _ = preprocess_labeled_data(args.test, args.limit, args.text_name, args.label_name,
                                                model.label_names)
-    results = evaluate(model, texts, labels, args.batch_size, args.language_model)
+    results = model.evaluate(texts, labels, args.batch_size)
     print("\n" + " - ".join("%s: %0.5f" % (name, score) for name, score in results))
 
 
@@ -144,32 +141,33 @@ def details_command(args):
     print(TextEmbeddingClassifier.load_model(args.model_filename))
 
 
-def demo_command(args):
-    def create_data_file(partition, filename):
+def demo_command(_):
+    def create_data_file(partition, filename, samples):
         data = pandas.DataFrame(
             {"text": partition.data,
-             "label": [partition.target_names[target] for target in partition.target]}).dropna()[:args.limit]
-        filename = os.path.join(args.output_directory, filename)
+             "label": [partition.target_names[target] for target in partition.target]}).dropna()[:samples]
         data.to_csv(filename, index=False)
         return filename
 
-    print("Download 20 Newsgroups data and create train.csv and test.csv.")
+    print("Download a portion of the 20 Newsgroups data and create train.csv and test.csv.")
     newsgroups_train = fetch_20newsgroups(subset="train", remove=("headers", "footers", "quotes"))
     newsgroups_test = fetch_20newsgroups(subset="test", remove=("headers", "footers", "quotes"))
-    train_filename = create_data_file(newsgroups_train, "train.csv")
-    test_filename = create_data_file(newsgroups_test, "test.csv")
-    model_filename = os.path.join(args.output_directory, "model.hd5")
+    train_filename = create_data_file(newsgroups_train, "train.csv", 1000)
+    test_filename = create_data_file(newsgroups_test, "test.csv", 100)
+    model_directory = "model"
     print("Train a model.\n")
-    print("mycroft train %s --model-filename %s --max-tokens 1000\n" % (train_filename, model_filename))
+    print("mycroft train %s --model-filename %s --max-tokens 100 --epochs 2\n" % (
+        train_filename, model_directory))
     training_args = argparse.Namespace(training=train_filename, limit=None, text_name="text", label_name="label",
-                                       validation=0.2, rnn_units=128, dropout=0.5, max_tokens=1000,
-                                       language_model="en", epochs=args.epochs, batch_size=256,
-                                       model_filename=model_filename)
+                                       validation=0.2, rnn_units=128, dropout=0.5, max_tokens=100,
+                                       vocabulary_size=20000, language_model="en",
+                                       epochs=2, batch_size=256,
+                                       model_directory=model_directory)
     # noinspection PyTypeChecker
     train_command(training_args)
     print("\nEvaluate it on the test data.\n")
-    print("mycroft evaluate %s model-filename %s\n" % (test_filename, model_filename))
-    evaluate_args = argparse.Namespace(model_filename=model_filename, test=test_filename, limit=None,
+    print("mycroft evaluate %s model-filename %s\n" % (test_filename, model_directory))
+    evaluate_args = argparse.Namespace(model_directory=model_directory, test=test_filename, limit=None,
                                        text_name="text", label_name="label", batch_size=256, language_model="en")
     # noinspection PyTypeChecker
     evaluate_command(evaluate_args)

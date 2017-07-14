@@ -1,38 +1,54 @@
 """Machine learning components"""
+import os
+import pickle
 import sys
 from io import StringIO
 
 import h5py
 import numpy
 from keras.callbacks import ModelCheckpoint
-from keras.layers import LSTM, Bidirectional, Dense, Dropout
+from keras.layers import LSTM, Bidirectional, Dense, Dropout, Embedding
 from keras.models import load_model, Sequential
 
 
 class TextEmbeddingClassifier:
+    model_name = "model.hd5"
+    embedder_name = "embedder.pk"
+
     @classmethod
-    def create(cls, tokens_per_text, embedding_size, rnn_units, dropout, label_names):
+    def create(cls, embedder, rnn_units, dropout, label_names):
         model = Sequential()
-        model.add(Bidirectional(LSTM(rnn_units), input_shape=(tokens_per_text, embedding_size), name="rnn"))
-        model.add(Dense(len(label_names), activation="softmax", name="softmax"))
+        if hasattr(embedder, "embedding_matrix"):
+            sequence_length = embedder.encoding_shape[0]
+            embedding_size = embedder.embedding_size
+            model.add(Embedding(embedder.vocabulary_size, embedding_size, weights=[embedder.embedding_matrix],
+                                input_length=sequence_length, mask_zero=True, trainable=False))
+            model.add(Bidirectional(LSTM(rnn_units), name="rnn"))
+            model.add(Dense(len(label_names), activation="softmax", name="softmax"))
+        else:
+            model.add(
+                Dense(len(label_names), input_shape=embedder.encoding_shape, activation="softmax", name="softmax"))
         model.add(Dropout(dropout, name="dropout"))
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-        return cls(model, label_names)
+        return cls(model, embedder, label_names)
 
     @classmethod
-    def load_model(cls, model_filename):
-        model = load_model(model_filename)
-        with h5py.File(model_filename, "r") as m:
+    def load_model(cls, model_directory):
+        model = load_model(os.path.join(model_directory, TextEmbeddingClassifier.model_name))
+        with h5py.File(os.path.join(model_directory, TextEmbeddingClassifier.model_name), "r") as m:
             label_names = [name.decode("UTF-8") for name in list(m.attrs["categories"])]
-        return cls(model, label_names)
+        with open(os.path.join(model_directory, TextEmbeddingClassifier.embedder_name), mode="rb") as f:
+            embedder = pickle.load(f)
+        return cls(model, embedder, label_names)
 
-    def __init__(self, model, label_names):
+    def __init__(self, model, embedder, label_names):
         self.model = model
+        self.embedder = embedder
         self.label_names = label_names
 
     def __repr__(self):
-        return "Text embedding classifier: embedding %d x %d, %d labels, %d RNN units, dropout rate %0.2f" % (
-            self.tokens_per_text, self.embedding_size, self.num_labels, self.rnn_units, self.dropout)
+        return "Text embedding classifier: %d labels, %d RNN units, dropout rate %0.2f\n%s" % (
+            self.num_labels, self.rnn_units, self.dropout, self.embedder)
 
     def __str__(self):
         def model_topology():
@@ -45,33 +61,40 @@ class TextEmbeddingClassifier:
 
         return "%s\n\n%s" % (repr(self), model_topology())
 
-    def train(self, training, validation, epochs, model_filename=None):
-        if validation is not None:
+    def train(self, texts, labels, epochs=10, batch_size=32, validation_fraction=None, model_directory=None, verbose=1):
+        if model_directory is not None:
+            os.makedirs(model_directory, exist_ok=True)
             monitor = "val_loss"
+            callbacks = [ModelCheckpoint(filepath=os.path.join(model_directory, TextEmbeddingClassifier.model_name),
+                                         monitor=monitor, save_best_only=True, verbose=verbose)]
+            with open(os.path.join(model_directory, TextEmbeddingClassifier.embedder_name), mode="wb") as f:
+                pickle.dump(self.embedder, f)
         else:
             monitor = "loss"
-        if model_filename is not None:
-            callbacks = [ModelCheckpoint(filepath=model_filename, monitor=monitor, save_best_only=True, verbose=1)]
-        else:
             callbacks = None
 
-        history = self.model.fit_generator(training(), steps_per_epoch=training.batches_per_epoch,
-                                           validation_data=validation(), validation_steps=validation.batches_per_epoch,
-                                           epochs=epochs, callbacks=callbacks)
+        training_vectors = self.embedder.encode(texts)
+        history = self.model.fit(training_vectors, labels, epochs=epochs, batch_size=batch_size,
+                                 validation_split=validation_fraction, verbose=verbose, callbacks=callbacks)
 
-        if model_filename is not None:
-            with h5py.File(model_filename) as m:
+        if model_directory is not None:
+            with h5py.File(os.path.join(model_directory, TextEmbeddingClassifier.model_name)) as m:
                 m.attrs["categories"] = numpy.array(
                     [numpy.string_(numpy.str_(label_name)) for label_name in self.label_names])
+                m.attrs["language_model"] = numpy.string_(numpy.str_(self.embedder.language_model))
 
         history.monitor = monitor
         return history
 
-    def predict(self, embeddings):
-        return self.model.predict_generator(embeddings(), embeddings.batches_per_epoch)
+    def predict(self, texts, batch_size=32):
+        embeddings = self.embedder.encode(texts)
+        label_probabilities = self.model.predict(embeddings, batch_size=batch_size)
+        predicted_labels = label_probabilities.argmax(axis=1)
+        return label_probabilities, predicted_labels
 
-    def evaluate(self, embeddings):
-        metrics = self.model.evaluate_generator(embeddings(), embeddings.batches_per_epoch)
+    def evaluate(self, texts, labels, batch_size=32):
+        embeddings = self.embedder.encode(texts)
+        metrics = self.model.evaluate(embeddings, labels, batch_size=batch_size)
         return list(zip(self.model.metrics_names, metrics))
 
     @property
@@ -83,7 +106,7 @@ class TextEmbeddingClassifier:
         return self.model.get_layer("dropout").rate
 
     @property
-    def tokens_per_text(self):
+    def embeddings_per_text(self):
         return self.model.get_layer("rnn").input_shape[1]
 
     @property
