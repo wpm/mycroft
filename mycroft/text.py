@@ -7,6 +7,10 @@ import numpy
 from keras.preprocessing.sequence import pad_sequences
 
 
+def longest_text(text_parser, texts):
+    return max(len(document) for document in text_parser.pipe(texts))
+
+
 class Embedder:
     def __init__(self, language_model="en"):
         self.text_parser = text_parser(language_model)

@@ -7,7 +7,7 @@ from unittest import TestCase
 import numpy
 from numpy.testing import assert_array_equal
 
-from text import text_parser, BagOfWordsEmbedder, TextSequenceEmbedder
+from text import text_parser, BagOfWordsEmbedder, TextSequenceEmbedder, longest_text
 
 
 class TestText(TestCase):
@@ -15,6 +15,9 @@ class TestText(TestCase):
         english_1 = text_parser("en")
         english_2 = text_parser("en")
         self.assertEqual(english_1, english_2)
+
+    def test_longest_text(self):
+        self.assertEqual(6, longest_text(text_parser("en"), ["Hello", "To be or not to be", "The boy cried"]))
 
     def test_bag_of_words_embedder(self):
         embedder = BagOfWordsEmbedder()

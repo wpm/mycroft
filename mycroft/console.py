@@ -11,7 +11,7 @@ import pandas
 from sklearn.datasets import fetch_20newsgroups
 
 from mycroft import __version__
-from mycroft.text import TextSequenceEmbedder
+from mycroft.text import TextSequenceEmbedder, longest_text, text_parser
 
 
 def main():
@@ -103,6 +103,8 @@ def train_command(args):
     from mycroft.model import TextEmbeddingClassifier
 
     texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.text_name, args.label_name)
+    if args.max_tokens is None:
+        args.max_tokens = longest_text(text_parser(args.language_model), texts)
     embedder = TextSequenceEmbedder(args.vocabulary_size, args.max_tokens, args.language_model)
     model = TextEmbeddingClassifier.create(embedder, args.rnn_units, args.dropout, label_names)
     history = model.train(texts, labels, args.epochs, args.batch_size, args.validation, args.model_directory)
@@ -156,17 +158,17 @@ def demo_command(_):
     test_filename = create_data_file(newsgroups_test, "test.csv", 100)
     model_directory = "model"
     print("Train a model.\n")
-    print("mycroft train %s --model-filename %s --max-tokens 100 --epochs 2\n" % (
+    print("mycroft train %s --model-directory %s --rnn-units 64 --max-tokens 100 --epochs 2\n" % (
         train_filename, model_directory))
     training_args = argparse.Namespace(training=train_filename, limit=None, text_name="text", label_name="label",
-                                       validation=0.2, rnn_units=128, dropout=0.5, max_tokens=100,
+                                       validation=0.2, rnn_units=64, dropout=0.5, max_tokens=100,
                                        vocabulary_size=20000, language_model="en",
                                        epochs=2, batch_size=256,
                                        model_directory=model_directory)
     # noinspection PyTypeChecker
     train_command(training_args)
     print("\nEvaluate it on the test data.\n")
-    print("mycroft evaluate %s model-filename %s\n" % (test_filename, model_directory))
+    print("mycroft evaluate %s model-directory %s\n" % (test_filename, model_directory))
     evaluate_args = argparse.Namespace(model_directory=model_directory, test=test_filename, limit=None,
                                        text_name="text", label_name="label", batch_size=256, language_model="en")
     # noinspection PyTypeChecker
