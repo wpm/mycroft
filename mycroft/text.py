@@ -7,8 +7,8 @@ import numpy
 from keras.preprocessing.sequence import pad_sequences
 
 
-def longest_text(text_parser, texts):
-    return max(len(document) for document in text_parser.pipe(texts))
+def longest_text(texts, language_model="en"):
+    return max(len(document) for document in text_parser(language_model).pipe(texts))
 
 
 class Embedder:

@@ -10,27 +10,12 @@ from keras.callbacks import ModelCheckpoint
 from keras.layers import LSTM, Bidirectional, Dense, Dropout, Embedding
 from keras.models import load_model, Sequential
 
+from mycroft.text import BagOfWordsEmbedder, TextSequenceEmbedder
+
 
 class TextEmbeddingClassifier:
     model_name = "model.hd5"
     embedder_name = "embedder.pk"
-
-    @classmethod
-    def create(cls, embedder, rnn_units, dropout, label_names):
-        model = Sequential()
-        if hasattr(embedder, "embedding_matrix"):
-            sequence_length = embedder.encoding_shape[0]
-            embedding_size = embedder.embedding_size
-            model.add(Embedding(embedder.vocabulary_size, embedding_size, weights=[embedder.embedding_matrix],
-                                input_length=sequence_length, mask_zero=True, trainable=False))
-            model.add(Bidirectional(LSTM(rnn_units), name="rnn"))
-            model.add(Dense(len(label_names), activation="softmax", name="softmax"))
-        else:
-            model.add(
-                Dense(len(label_names), input_shape=embedder.encoding_shape, activation="softmax", name="softmax"))
-        model.add(Dropout(dropout, name="dropout"))
-        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-        return cls(model, embedder, label_names)
 
     @classmethod
     def load_model(cls, model_directory):
@@ -116,3 +101,30 @@ class TextEmbeddingClassifier:
     @property
     def num_labels(self):
         return len(self.label_names)
+
+
+class BagOfWordsEmbeddingClassifier(TextEmbeddingClassifier):
+    @classmethod
+    def create(cls, dropout, label_names, language_model="en"):
+        embedder = BagOfWordsEmbedder(language_model)
+        model = Sequential()
+        model.add(Dense(len(label_names), input_shape=embedder.encoding_shape, activation="softmax", name="softmax"))
+        model.add(Dropout(dropout, name="dropout"))
+        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+        return cls(model, embedder, label_names)
+
+
+class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
+    @classmethod
+    def create(cls, vocabulary_size, sequence_length, rnn_units, dropout, label_names, language_model="en"):
+        embedder = TextSequenceEmbedder(vocabulary_size, sequence_length, language_model)
+        model = Sequential()
+        sequence_length = embedder.encoding_shape[0]
+        embedding_size = embedder.embedding_size
+        model.add(Embedding(embedder.vocabulary_size, embedding_size, weights=[embedder.embedding_matrix],
+                            input_length=sequence_length, mask_zero=True, trainable=False))
+        model.add(Bidirectional(LSTM(rnn_units), name="rnn"))
+        model.add(Dense(len(label_names), activation="softmax", name="softmax"))
+        model.add(Dropout(dropout, name="dropout"))
+        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+        return cls(model, embedder, label_names)

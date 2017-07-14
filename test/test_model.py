@@ -9,8 +9,7 @@ from unittest import TestCase
 import numpy
 from keras.callbacks import History
 
-from model import TextEmbeddingClassifier
-from text import BagOfWordsEmbedder
+from mycroft.model import TextEmbeddingClassifier, BagOfWordsEmbeddingClassifier, TextSequenceEmbeddingClassifier
 
 
 class TestModel(TestCase):
@@ -90,30 +89,36 @@ class TestModel(TestCase):
 
     def setUp(self):
         self.model_directory = tempfile.mkdtemp()
+        self.texts, self.labels, self.label_names = self.create_data_set()
 
     def tearDown(self):
         shutil.rmtree(self.model_directory)
 
-    def test_model(self):
-        texts, labels, label_names = self.create_data_set()
-        embedder = BagOfWordsEmbedder()
-        model = TextEmbeddingClassifier.create(embedder, 128, 0.5, label_names)
+    def test_bag_of_words(self):
+        model = BagOfWordsEmbeddingClassifier.create(0.5, self.label_names)
+        self.train_predict_evaluate(model)
+
+    def test_text_sequence(self):
+        model = TextSequenceEmbeddingClassifier.create(20000, 10, 32, 0.5, self.label_names)
+        self.train_predict_evaluate(model)
+
+    def train_predict_evaluate(self, model):
         # Train
-        history = model.train(texts, labels, epochs=2, batch_size=10, validation_fraction=0.1,
+        history = model.train(self.texts, self.labels, epochs=2, batch_size=10, validation_fraction=0.1,
                               model_directory=self.model_directory, verbose=0)
         self.assertIsInstance(history, History)
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "model.hd5")))
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "embedder.pk")))
         # Predict
         loaded_model = TextEmbeddingClassifier.load_model(self.model_directory)
-        n = len(texts)
-        label_probabilities, predicted_labels = loaded_model.predict(texts)
+        n = len(self.texts)
+        label_probabilities, predicted_labels = loaded_model.predict(self.texts)
         self.assertEqual((n, 2), label_probabilities.shape)
         self.assertEqual(numpy.dtype("float32"), label_probabilities.dtype)
         self.assertEqual(n, len(predicted_labels))
         self.assertTrue(set(predicted_labels).issubset({0, 1}))
         # Evaluate
-        scores = loaded_model.evaluate(texts, labels)
+        scores = loaded_model.evaluate(self.texts, self.labels)
         self.assertIsInstance(scores, list)
         self.assertEqual(2, len(scores))
         loss = [s[1] for s in scores if s[0] == "loss"][0]
