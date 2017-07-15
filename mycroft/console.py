@@ -104,6 +104,7 @@ def create_training_argument_groups(training_command):
                             help="name of the text column (default 'text')")
     data_group.add_argument("--label-name", metavar="NAME", default="label",
                             help="name of the label column (default 'label')")
+    data_group.add_argument("--omit-labels", metavar="LABEL", nargs="*", help="omit samples with these label values")
 
     train_group = training_arguments.add_argument_group("training",
                                                         description="Arguments for controlling the training procedure:")
@@ -136,7 +137,8 @@ def neural_sequence_command(args):
     from .model import TextSequenceEmbeddingClassifier
     from .text import longest_text
 
-    texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.text_name, args.label_name)
+    texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.omit_labels, args.text_name,
+                                                         args.label_name)
     if args.max_tokens is None:
         args.max_tokens = longest_text(texts, args.language_model)
     model = TextSequenceEmbeddingClassifier.create(args.vocabulary_size, args.max_tokens, args.rnn_units, args.dropout,
@@ -147,7 +149,8 @@ def neural_sequence_command(args):
 def neural_bow_command(args):
     from .model import BagOfWordsEmbeddingClassifier
 
-    texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.text_name, args.label_name)
+    texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.omit_labels, args.text_name,
+                                                         args.label_name)
     model = BagOfWordsEmbeddingClassifier.create(args.dropout, label_names, args.language_model)
     train(args, texts, labels, model)
 
@@ -155,7 +158,8 @@ def neural_bow_command(args):
 def svm_command(args):
     from .model import WordCountClassifier
 
-    texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.text_name, args.label_name)
+    texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.omit_labels, args.text_name,
+                                                         args.label_name)
     model = WordCountClassifier(label_names, args.verbose)
     results = model.train(texts, labels, args.validation, args.model_filename)
     if results:
@@ -190,7 +194,7 @@ def evaluate_command(args):
     from .model import TextEmbeddingClassifier
 
     model = TextEmbeddingClassifier.load_model(args.model_directory)
-    texts, labels, _ = preprocess_labeled_data(args.test, args.limit, args.text_name, args.label_name,
+    texts, labels, _ = preprocess_labeled_data(args.test, args.limit, args.omit_labels, args.text_name, args.label_name,
                                                model.label_names)
     results = model.evaluate(texts, labels, args.batch_size)
     print("\n" + " - ".join("%s: %0.5f" % (name, score) for name, score in results))
@@ -228,8 +232,10 @@ def demo_command(_):
     evaluate_command(evaluate_args)
 
 
-def preprocess_labeled_data(data_filename, limit, text_name, label_name, label_names=None):
+def preprocess_labeled_data(data_filename, limit, omit_labels, text_name, label_name, label_names=None):
     data = read_data_file(data_filename, limit)
+    if omit_labels:
+        data = data[~data[label_name].isin(omit_labels)]
     data[label_name] = pandas.Categorical(data[label_name].astype(str), categories=label_names)
     labels = numpy.array(data[label_name].cat.codes)
     label_names = data[label_name].cat.categories
