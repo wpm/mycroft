@@ -6,16 +6,11 @@ from io import StringIO
 
 import h5py
 import numpy
-from keras.callbacks import ModelCheckpoint
-from keras.layers import LSTM, Bidirectional, Dense, Dropout, Embedding
-from keras.models import load_model, Sequential
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import accuracy_score, log_loss
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
-
-from mycroft.text import BagOfWordsEmbedder, TextSequenceEmbedder
 
 
 class TextEmbeddingClassifier:
@@ -25,6 +20,7 @@ class TextEmbeddingClassifier:
 
     @classmethod
     def load_model(cls, model_directory):
+        from keras.models import load_model
         model = load_model(os.path.join(model_directory, TextEmbeddingClassifier.model_name))
         with h5py.File(os.path.join(model_directory, TextEmbeddingClassifier.model_name), "r") as m:
             label_names = [name.decode("UTF-8") for name in list(m.attrs["categories"])]
@@ -66,6 +62,7 @@ class TextEmbeddingClassifier:
         if model_directory is not None:
             os.makedirs(model_directory, exist_ok=True)
             if validation_fraction:
+                from keras.callbacks import ModelCheckpoint
                 callbacks = [ModelCheckpoint(filepath=os.path.join(model_directory, TextEmbeddingClassifier.model_name),
                                              monitor=monitor, save_best_only=True, verbose=verbose)]
             with open(embedder_filename(), mode="wb") as f:
@@ -111,6 +108,10 @@ class TextEmbeddingClassifier:
 class BagOfWordsEmbeddingClassifier(TextEmbeddingClassifier):
     @classmethod
     def create(cls, dropout, label_names, language_model="en"):
+        from keras.models import Sequential
+        from keras.layers import Dense, Dropout
+        from mycroft.text import BagOfWordsEmbedder
+
         embedder = BagOfWordsEmbedder(language_model)
         model = Sequential()
         model.add(Dense(len(label_names), input_shape=embedder.encoding_shape, activation="softmax", name="softmax"))
@@ -126,6 +127,10 @@ class BagOfWordsEmbeddingClassifier(TextEmbeddingClassifier):
 class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
     @classmethod
     def create(cls, vocabulary_size, sequence_length, rnn_units, dropout, label_names, language_model="en"):
+        from keras.models import Sequential
+        from keras.layers import Bidirectional, Dense, Dropout, Embedding, LSTM
+        from mycroft.text import TextSequenceEmbedder
+
         embedder = TextSequenceEmbedder(vocabulary_size, sequence_length, language_model)
         model = Sequential()
         sequence_length = embedder.encoding_shape[0]
