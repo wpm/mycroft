@@ -11,7 +11,7 @@ def longest_text(texts, language_model="en"):
     return max(len(document) for document in text_parser(language_model).pipe(texts))
 
 
-class Embedder:
+class Embedder(object):
     def __init__(self, language_model="en"):
         self.text_parser = text_parser(language_model)
 
@@ -61,7 +61,7 @@ class TextSequenceEmbedder(Embedder):
             for i, lexeme in enumerate(lexemes, 1):
                 yield i, lexeme.orth_, lexeme.vector
 
-        super().__init__(text_parser(language_model))
+        super(self.__class__, self).__init__(language_model)
         self.sequence_length = sequence_length
         self.embedding_matrix = numpy.zeros((vocabulary_size, self.text_parser.vocab.vectors_length))
         self.vocabulary = {}
@@ -70,7 +70,7 @@ class TextSequenceEmbedder(Embedder):
             self.vocabulary[token] = index
 
     def __repr__(self):
-        return super().__repr__() + ", embedding matrix %s" % (self.embedding_matrix.shape,)
+        return super(self.__class__, self).__repr__() + ", embedding matrix %s" % (self.embedding_matrix.shape,)
 
     def encode(self, texts):
         token_index_sequences = pad_sequences(

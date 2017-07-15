@@ -1,4 +1,5 @@
 """Machine learning components"""
+import errno
 import os
 import pickle
 import sys
@@ -6,6 +7,7 @@ from io import StringIO
 
 import h5py
 import numpy
+import six
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import accuracy_score, log_loss
 from sklearn.model_selection import train_test_split
@@ -35,12 +37,16 @@ class TextEmbeddingClassifier:
 
     def __str__(self):
         def model_topology():
-            # Keras' model summary prints to standard out.
-            old_stdout = sys.stdout
-            sys.stdout = s = StringIO()
-            self.model.summary()
-            sys.stdout = old_stdout
-            return s.getvalue()
+            if six.PY3:
+                # Keras' model summary prints to standard out. This trick of capturing the output causes an error when
+                # running under Python 2.7.
+                old_stdout = sys.stdout
+                sys.stdout = s = StringIO()
+                self.model.summary()
+                sys.stdout = old_stdout
+                return s.getvalue()
+            else:
+                return ""
 
         return "%s\n\n%s" % (repr(self), model_topology())
 
@@ -54,13 +60,23 @@ class TextEmbeddingClassifier:
         def description_filename():
             return os.path.join(model_directory, TextEmbeddingClassifier.description_name)
 
+        def create_directory(directory):
+            if six.PY3:
+                os.makedirs(directory, exist_ok=True)
+            else:
+                try:
+                    os.makedirs(directory)
+                except OSError as e:
+                    if e.errno != errno.EEXIST:
+                        raise
+
         if validation_fraction:
             monitor = "val_loss"
         else:
             monitor = "loss"
         callbacks = None
         if model_directory is not None:
-            os.makedirs(model_directory, exist_ok=True)
+            create_directory(model_directory)
             if validation_fraction:
                 from keras.callbacks import ModelCheckpoint
                 callbacks = [ModelCheckpoint(filepath=os.path.join(model_directory, TextEmbeddingClassifier.model_name),
@@ -110,7 +126,7 @@ class BagOfWordsEmbeddingClassifier(TextEmbeddingClassifier):
     def create(cls, dropout, label_names, language_model="en"):
         from keras.models import Sequential
         from keras.layers import Dense, Dropout
-        from mycroft.text import BagOfWordsEmbedder
+        from .text import BagOfWordsEmbedder
 
         embedder = BagOfWordsEmbedder(language_model)
         model = Sequential()
@@ -129,7 +145,7 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
     def create(cls, vocabulary_size, sequence_length, rnn_units, dropout, label_names, language_model="en"):
         from keras.models import Sequential
         from keras.layers import Bidirectional, Dense, Dropout, Embedding, LSTM
-        from mycroft.text import TextSequenceEmbedder
+        from .text import TextSequenceEmbedder
 
         embedder = TextSequenceEmbedder(vocabulary_size, sequence_length, language_model)
         model = Sequential()

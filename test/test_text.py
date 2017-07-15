@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import os
 import pickle
 import shutil
@@ -11,6 +13,9 @@ from mycroft.text import text_parser, BagOfWordsEmbedder, TextSequenceEmbedder, 
 
 
 class TestText(TestCase):
+    def setUp(self):
+        self.texts = ["The quick brown fox", "jumped over the lazy dog."]
+
     def test_text_parser(self):
         english_1 = text_parser("en")
         english_2 = text_parser("en")
@@ -33,7 +38,7 @@ class TestText(TestCase):
         self.assertEqual((300,), embedder.encoding_shape)
         self.assertEqual(300, embedder.embedding_size)
         self.assertFalse(hasattr(embedder, "embedding_matrix"))
-        embedding = embedder.encode(["The quick brown fox", "jumped over the lazy dog."])
+        embedding = embedder.encode(self.texts)
         self.assertEqual((2, 300), embedding.shape)
         self.assertEqual(numpy.dtype("float32"), embedding.dtype)
 
@@ -47,7 +52,7 @@ class TestText(TestCase):
         self.assertEqual(10000, embedder.vocabulary_size)
         self.assertTrue(hasattr(embedder, "embedding_matrix"))
         self.assertEqual((10000, 300), embedder.embedding_matrix.shape)
-        embedding = embedder.encode(["The quick brown fox", "jumped over the lazy dog."])
+        embedding = embedder.encode(self.texts)
         self.assertEqual((2, 50), embedding.shape)
         self.assertEqual(numpy.dtype("int32"), embedding.dtype)
 
@@ -55,6 +60,7 @@ class TestText(TestCase):
 class TestTextSerialization(TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.mkdtemp()
+        self.texts = [u"The quick brown fox", u"jumped over the lazy dog."]
 
     def tearDown(self):
         shutil.rmtree(self.temporary_directory)
@@ -62,17 +68,15 @@ class TestTextSerialization(TestCase):
     def test_serialize_bag_of_words_embedder(self):
         embedder_1 = BagOfWordsEmbedder()
         embedder_2 = self.serialization_round_trip(embedder_1, "bow.pk")
-        texts = ["The quick brown fox", "jumped over the lazy dog."]
-        embedding_1 = embedder_1.encode(texts)
-        embedding_2 = embedder_2.encode(texts)
+        embedding_1 = embedder_1.encode(self.texts)
+        embedding_2 = embedder_2.encode(self.texts)
         assert_array_equal(embedding_1, embedding_2)
 
     def test_serialize_text_sequence_embedder(self):
         embedder_1 = TextSequenceEmbedder(10000, 50)
         embedder_2 = self.serialization_round_trip(embedder_1, "seq.pk")
-        texts = ["The quick brown fox", "jumped over the lazy dog."]
-        embedding_1 = embedder_1.encode(texts)
-        embedding_2 = embedder_2.encode(texts)
+        embedding_1 = embedder_1.encode(self.texts)
+        embedding_2 = embedder_2.encode(self.texts)
         assert_array_equal(embedding_1, embedding_2)
 
     def serialization_round_trip(self, obj, name):

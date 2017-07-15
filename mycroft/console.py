@@ -133,8 +133,8 @@ def create_training_argument_groups(training_command):
 
 
 def neural_sequence_command(args):
-    from mycroft.model import TextSequenceEmbeddingClassifier
-    from mycroft.text import longest_text
+    from .model import TextSequenceEmbeddingClassifier
+    from .text import longest_text
 
     texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.text_name, args.label_name)
     if args.max_tokens is None:
@@ -145,7 +145,7 @@ def neural_sequence_command(args):
 
 
 def neural_bow_command(args):
-    from mycroft.model import BagOfWordsEmbeddingClassifier
+    from .model import BagOfWordsEmbeddingClassifier
 
     texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.text_name, args.label_name)
     model = BagOfWordsEmbeddingClassifier.create(args.dropout, label_names, args.language_model)
@@ -153,7 +153,7 @@ def neural_bow_command(args):
 
 
 def svm_command(args):
-    from mycroft.model import WordCountClassifier
+    from .model import WordCountClassifier
 
     texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.text_name, args.label_name)
     model = WordCountClassifier(label_names, args.verbose)
@@ -174,7 +174,7 @@ def train(args, texts, labels, model):
 
 
 def predict_command(args):
-    from mycroft.model import TextEmbeddingClassifier
+    from .model import TextEmbeddingClassifier
 
     model = TextEmbeddingClassifier.load_model(args.model_directory)
     data = read_data_file(args.test, args.limit)
@@ -187,7 +187,7 @@ def predict_command(args):
 
 
 def evaluate_command(args):
-    from mycroft.model import TextEmbeddingClassifier
+    from .model import TextEmbeddingClassifier
 
     model = TextEmbeddingClassifier.load_model(args.model_directory)
     texts, labels, _ = preprocess_labeled_data(args.test, args.limit, args.text_name, args.label_name,
