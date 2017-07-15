@@ -97,9 +97,12 @@ class TestModel(TestCase):
     def test_bag_of_words(self):
         model = BagOfWordsEmbeddingClassifier.create(0.5, self.label_names)
         self.train_predict_evaluate(model)
+        self.train_without_validation(model)
 
     def test_text_sequence(self):
         model = TextSequenceEmbeddingClassifier.create(20000, 10, 32, 0.5, self.label_names)
+        self.assertEqual(10, model.embeddings_per_text)
+        self.assertEqual(300, model.embedding_size)
         self.train_predict_evaluate(model)
 
     def train_predict_evaluate(self, model):
@@ -126,3 +129,7 @@ class TestModel(TestCase):
         self.assertIsInstance(loss, float)
         acc = [s[1] for s in scores if s[0] == "acc"][0]
         self.assertIsInstance(acc, float)
+
+    def train_without_validation(self, model):
+        history = model.train(self.texts, self.labels, epochs=2, batch_size=10, verbose=0)
+        self.assertIsInstance(history, History)

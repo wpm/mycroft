@@ -90,14 +90,6 @@ class TextEmbeddingClassifier:
         return self.model.get_layer("dropout").rate
 
     @property
-    def embeddings_per_text(self):
-        return self.model.get_layer("rnn").input_shape[1]
-
-    @property
-    def embedding_size(self):
-        return self.model.get_layer("rnn").input_shape[2]
-
-    @property
     def num_labels(self):
         return len(self.label_names)
 
@@ -135,3 +127,11 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
     def __repr__(self):
         return "Neural text sequence classifier: %d labels, %d RNN units, dropout rate %0.2f\n%s" % (
             self.num_labels, self.rnn_units, self.dropout, self.embedder)
+
+    @property
+    def embeddings_per_text(self):
+        return self.model.get_layer("rnn").input_shape[1]
+
+    @property
+    def embedding_size(self):
+        return self.model.get_layer("rnn").input_shape[2]

@@ -7,7 +7,7 @@ from unittest import TestCase
 import numpy
 from numpy.testing import assert_array_equal
 
-from mycroft.text import text_parser, BagOfWordsEmbedder, TextSequenceEmbedder, longest_text
+from mycroft.text import text_parser, BagOfWordsEmbedder, TextSequenceEmbedder, longest_text, Embedder
 
 
 class TestText(TestCase):
@@ -18,6 +18,13 @@ class TestText(TestCase):
 
     def test_longest_text(self):
         self.assertEqual(6, longest_text(["Hello", "To be or not to be", "The boy cried"]))
+
+    def test_base_class(self):
+        embedder = Embedder()
+        with self.assertRaises(NotImplementedError):
+            embedder.encode(["one two three"])
+        with self.assertRaises(NotImplementedError):
+            embedder.encoding_shape()
 
     def test_bag_of_words_embedder(self):
         embedder = BagOfWordsEmbedder()
