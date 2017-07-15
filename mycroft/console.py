@@ -48,7 +48,7 @@ def main():
     train_group.add_argument("--model-directory", metavar="FILENAME",
                              help="directory in which to to store the model (default do not store a model)")
     train_group.add_argument("--logging", choices=["none", "progress", "epoch"], default="epoch",
-                             help="kind of logging: none, a progress bar, or a line at the end of each epoch")
+                             help="no logging, a progress bar, one line per epoch (default epoch)")
 
     # train-nseq subcommand
     neural_sequence_parser = subparsers.add_parser("train-nseq", parents=[shared_training_arguments],
