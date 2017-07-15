@@ -72,13 +72,13 @@ class TextEmbeddingClassifier:
 
     def predict(self, texts, batch_size=32):
         embeddings = self.embedder.encode(texts)
-        label_probabilities = self.model.predict(embeddings, batch_size=batch_size)
+        label_probabilities = self.model.predict(embeddings, batch_size=batch_size, verbose=0)
         predicted_labels = label_probabilities.argmax(axis=1)
         return label_probabilities, predicted_labels
 
     def evaluate(self, texts, labels, batch_size=32):
         embeddings = self.embedder.encode(texts)
-        metrics = self.model.evaluate(embeddings, labels, batch_size=batch_size)
+        metrics = self.model.evaluate(embeddings, labels, batch_size=batch_size, verbose=0)
         return list(zip(self.model.metrics_names, metrics))
 
     @property

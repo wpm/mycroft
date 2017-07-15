@@ -47,6 +47,8 @@ def main():
     train_group.add_argument("--batch-size", metavar="SIZE", type=int, default=256, help="batch size (default 256)")
     train_group.add_argument("--model-directory", metavar="FILENAME",
                              help="directory in which to to store the model (default do not store a model)")
+    train_group.add_argument("--logging", choices=["none", "progress", "epoch"], default="epoch",
+                             help="kind of logging: none, a progress bar, or a line at the end of each epoch")
 
     # train-nseq subcommand
     neural_sequence_parser = subparsers.add_parser("train-nseq", parents=[shared_training_arguments],
@@ -144,7 +146,9 @@ def neural_bow_command(args):
 
 
 def train(args, texts, labels, model):
-    history = model.train(texts, labels, args.epochs, args.batch_size, args.validation, args.model_directory)
+    verbose = {"none": 0, "progress": 1, "epoch": 2}[args.logging]
+    history = model.train(texts, labels, args.epochs, args.batch_size, args.validation, args.model_directory,
+                          verbose=verbose)
     losses = history.history[history.monitor]
     best_loss = min(losses)
     best_epoch = losses.index(best_loss)
@@ -201,7 +205,7 @@ def demo_command(_):
                                        validation=0.2, dropout=0.5,
                                        language_model="en",
                                        epochs=2, batch_size=256,
-                                       model_directory=model_directory)
+                                       model_directory=model_directory, logging="epoch")
     # noinspection PyTypeChecker
     neural_bow_command(training_args)
     print("\nEvaluate it on the test data.\n")
