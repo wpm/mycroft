@@ -109,6 +109,7 @@ class TestModel(TestCase):
         self.assertIsInstance(history, History)
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "model.hd5")))
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "embedder.pk")))
+        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "description.txt")))
         # Predict
         loaded_model = TextEmbeddingClassifier.load_model(self.model_directory)
         n = len(self.texts)

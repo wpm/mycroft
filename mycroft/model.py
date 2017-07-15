@@ -16,6 +16,7 @@ from mycroft.text import BagOfWordsEmbedder, TextSequenceEmbedder
 class TextEmbeddingClassifier:
     model_name = "model.hd5"
     embedder_name = "embedder.pk"
+    description_name = "description.txt"
 
     @classmethod
     def load_model(cls, model_directory):
@@ -30,10 +31,6 @@ class TextEmbeddingClassifier:
         self.model = model
         self.embedder = embedder
         self.label_names = label_names
-
-    def __repr__(self):
-        return "Text embedding classifier: %d labels, %d RNN units, dropout rate %0.2f\n%s" % (
-            self.num_labels, self.rnn_units, self.dropout, self.embedder)
 
     def __str__(self):
         def model_topology():
@@ -54,6 +51,8 @@ class TextEmbeddingClassifier:
                                          monitor=monitor, save_best_only=True, verbose=verbose)]
             with open(os.path.join(model_directory, TextEmbeddingClassifier.embedder_name), mode="wb") as f:
                 pickle.dump(self.embedder, f)
+            with open(os.path.join(model_directory, TextEmbeddingClassifier.description_name), mode="w") as f:
+                f.write("%s" % self)
         else:
             monitor = "loss"
             callbacks = None
@@ -113,6 +112,10 @@ class BagOfWordsEmbeddingClassifier(TextEmbeddingClassifier):
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
         return cls(model, embedder, label_names)
 
+    def __repr__(self):
+        return "Neural bag of words classifier: %d labels, dropout rate %0.2f\n%s" % (
+            self.num_labels, self.dropout, self.embedder)
+
 
 class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
     @classmethod
@@ -128,3 +131,7 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
         model.add(Dropout(dropout, name="dropout"))
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
         return cls(model, embedder, label_names)
+
+    def __repr__(self):
+        return "Neural text sequence classifier: %d labels, %d RNN units, dropout rate %0.2f\n%s" % (
+            self.num_labels, self.rnn_units, self.dropout, self.embedder)
