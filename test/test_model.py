@@ -96,13 +96,18 @@ class TestModel(TestCase):
 
     def test_bag_of_words(self):
         model = BagOfWordsEmbeddingClassifier.create(0.5, self.label_names)
+        self.assertEqual(2, model.num_labels)
+        self.assertEqual(0.5, model.dropout)
         self.train_predict_evaluate(model)
         self.train_without_validation(model)
 
     def test_text_sequence(self):
         model = TextSequenceEmbeddingClassifier.create(20000, 10, 32, 0.5, self.label_names)
+        self.assertEqual(2, model.num_labels)
+        self.assertEqual(0.5, model.dropout)
         self.assertEqual(10, model.embeddings_per_text)
         self.assertEqual(300, model.embedding_size)
+        self.assertEqual(32, model.rnn_units)
         self.train_predict_evaluate(model)
 
     def train_predict_evaluate(self, model):

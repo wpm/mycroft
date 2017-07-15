@@ -94,10 +94,6 @@ class TextEmbeddingClassifier:
         return list(zip(self.model.metrics_names, metrics))
 
     @property
-    def rnn_units(self):
-        return self.model.get_layer("rnn").layer.units
-
-    @property
     def dropout(self):
         return self.model.get_layer("dropout").rate
 
@@ -139,6 +135,10 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
     def __repr__(self):
         return "Neural text sequence classifier: %d labels, %d RNN units, dropout rate %0.2f\n%s" % (
             self.num_labels, self.rnn_units, self.dropout, self.embedder)
+
+    @property
+    def rnn_units(self):
+        return self.model.get_layer("rnn").layer.units
 
     @property
     def embeddings_per_text(self):
