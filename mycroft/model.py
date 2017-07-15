@@ -44,25 +44,37 @@ class TextEmbeddingClassifier:
         return "%s\n\n%s" % (repr(self), model_topology())
 
     def train(self, texts, labels, epochs=10, batch_size=32, validation_fraction=None, model_directory=None, verbose=1):
+        def model_filename():
+            return os.path.join(model_directory, TextEmbeddingClassifier.model_name)
+
+        def embedder_filename():
+            return os.path.join(model_directory, TextEmbeddingClassifier.embedder_name)
+
+        def description_filename():
+            return os.path.join(model_directory, TextEmbeddingClassifier.description_name)
+
+        callbacks = None
         if model_directory is not None:
             os.makedirs(model_directory, exist_ok=True)
             monitor = "val_loss"
-            callbacks = [ModelCheckpoint(filepath=os.path.join(model_directory, TextEmbeddingClassifier.model_name),
-                                         monitor=monitor, save_best_only=True, verbose=verbose)]
-            with open(os.path.join(model_directory, TextEmbeddingClassifier.embedder_name), mode="wb") as f:
+            if validation_fraction:
+                callbacks = [ModelCheckpoint(filepath=os.path.join(model_directory, TextEmbeddingClassifier.model_name),
+                                             monitor=monitor, save_best_only=True, verbose=verbose)]
+            with open(embedder_filename(), mode="wb") as f:
                 pickle.dump(self.embedder, f)
-            with open(os.path.join(model_directory, TextEmbeddingClassifier.description_name), mode="w") as f:
+            with open(description_filename(), mode="w") as f:
                 f.write("%s" % self)
         else:
             monitor = "loss"
-            callbacks = None
 
         training_vectors = self.embedder.encode(texts)
         history = self.model.fit(training_vectors, labels, epochs=epochs, batch_size=batch_size,
                                  validation_split=validation_fraction, verbose=verbose, callbacks=callbacks)
 
         if model_directory is not None:
-            with h5py.File(os.path.join(model_directory, TextEmbeddingClassifier.model_name)) as m:
+            if not validation_fraction:
+                self.model.save(model_filename())
+            with h5py.File(model_filename()) as m:
                 m.attrs["categories"] = numpy.array(
                     [numpy.string_(numpy.str_(label_name)) for label_name in self.label_names])
                 m.attrs["language_model"] = numpy.string_(numpy.str_(self.embedder.language_model))

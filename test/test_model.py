@@ -131,5 +131,9 @@ class TestModel(TestCase):
         self.assertIsInstance(acc, float)
 
     def train_without_validation(self, model):
-        history = model.train(self.texts, self.labels, epochs=2, batch_size=10, verbose=0)
+        history = model.train(self.texts, self.labels, epochs=2, batch_size=10, model_directory=self.model_directory,
+                              verbose=0)
         self.assertIsInstance(history, History)
+        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "model.hd5")))
+        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "embedder.pk")))
+        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "description.txt")))
