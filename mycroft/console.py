@@ -112,11 +112,6 @@ def main():
                                  help="name of the label column (default 'label')")
     evaluate_parser.set_defaults(func=evaluate_command)
 
-    # Details subcommand
-    details_parser = subparsers.add_parser("details", description="Show details_command of a trained model.")
-    details_parser.add_argument("model_directory", metavar="model", help="directory containing the trained model")
-    details_parser.set_defaults(func=details_command)
-
     # Demo subcommand
     demo_parser = subparsers.add_parser("demo", description="Run a demo_command on 20 newsgroups data.")
     demo_parser.set_defaults(func=demo_command)
@@ -177,11 +172,6 @@ def evaluate_command(args):
                                                model.label_names)
     results = model.evaluate(texts, labels, args.batch_size)
     print("\n" + " - ".join("%s: %0.5f" % (name, score) for name, score in results))
-
-
-def details_command(args):
-    from mycroft.model import TextEmbeddingClassifier
-    print(TextEmbeddingClassifier.load_model(args.model_filename))
 
 
 def demo_command(_):
