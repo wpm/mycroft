@@ -20,13 +20,13 @@ class Embedder:
             self.__class__.__name__, self.text_parser.meta["name"], self.encoding_shape)
 
     def __getstate__(self):
-        dict = self.__dict__.copy()
-        dict["text_parser"] = self.language_model
-        return dict
+        d = self.__dict__.copy()
+        d["text_parser"] = self.language_model
+        return d
 
-    def __setstate__(self, dict):
-        dict["text_parser"] = text_parser(dict["text_parser"])
-        self.__dict__.update(dict)
+    def __setstate__(self, d):
+        d["text_parser"] = text_parser(d["text_parser"])
+        self.__dict__.update(d)
 
     @property
     def language_model(self):

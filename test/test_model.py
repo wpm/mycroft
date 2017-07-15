@@ -9,7 +9,8 @@ from unittest import TestCase
 import numpy
 from keras.callbacks import History
 
-from mycroft.model import TextEmbeddingClassifier, BagOfWordsEmbeddingClassifier, TextSequenceEmbeddingClassifier
+from mycroft.model import TextEmbeddingClassifier, BagOfWordsEmbeddingClassifier, TextSequenceEmbeddingClassifier, \
+    WordCountClassifier
 
 
 class TestModel(TestCase):
@@ -98,8 +99,8 @@ class TestModel(TestCase):
         model = BagOfWordsEmbeddingClassifier.create(0.5, self.label_names)
         self.assertEqual(2, model.num_labels)
         self.assertEqual(0.5, model.dropout)
-        self.train_predict_evaluate(model)
-        self.train_without_validation(model)
+        self.embedding_model_train_predict_evaluate(model)
+        self.embedding_model_train_without_validation(model)
 
     def test_text_sequence(self):
         model = TextSequenceEmbeddingClassifier.create(20000, 10, 32, 0.5, self.label_names)
@@ -108,9 +109,9 @@ class TestModel(TestCase):
         self.assertEqual(10, model.embeddings_per_text)
         self.assertEqual(300, model.embedding_size)
         self.assertEqual(32, model.rnn_units)
-        self.train_predict_evaluate(model)
+        self.embedding_model_train_predict_evaluate(model)
 
-    def train_predict_evaluate(self, model):
+    def embedding_model_train_predict_evaluate(self, model):
         # Train
         history = model.train(self.texts, self.labels, epochs=2, batch_size=10, validation_fraction=0.1,
                               model_directory=self.model_directory, verbose=0)
@@ -128,17 +129,46 @@ class TestModel(TestCase):
         self.assertTrue(set(predicted_labels).issubset({0, 1}))
         # Evaluate
         scores = loaded_model.evaluate(self.texts, self.labels)
-        self.assertIsInstance(scores, list)
-        self.assertEqual(2, len(scores))
-        loss = [s[1] for s in scores if s[0] == "loss"][0]
-        self.assertIsInstance(loss, float)
-        acc = [s[1] for s in scores if s[0] == "acc"][0]
-        self.assertIsInstance(acc, float)
+        self.is_loss_and_accuracy(scores)
 
-    def train_without_validation(self, model):
+    def embedding_model_train_without_validation(self, model):
         history = model.train(self.texts, self.labels, epochs=2, batch_size=10, model_directory=self.model_directory,
                               verbose=0)
         self.assertIsInstance(history, History)
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "model.hd5")))
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "embedder.pk")))
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "description.txt")))
+
+    def test_word_count(self):
+        model_filename = os.path.join(self.model_directory, "word-count.pk")
+        model = WordCountClassifier(self.label_names)
+        self.assertEqual("SVM TF-IDF classifier: 2 labels", str(model))
+        # Train
+        model.train(self.texts, self.labels, validation_fraction=0.1, model_filename=model_filename)
+        self.assertTrue(os.path.exists(model_filename))
+        # Predict
+        loaded_model = WordCountClassifier.load_model(model_filename)
+        n = len(self.texts)
+        label_probabilities, predicted_labels = loaded_model.predict(self.texts)
+        self.assertEqual((n, 2), label_probabilities.shape)
+        self.assertEqual(numpy.dtype("float64"), label_probabilities.dtype)
+        self.assertEqual(n, len(predicted_labels))
+        self.assertTrue(set(predicted_labels).issubset({0, 1}))
+        # Evaluate
+        scores = loaded_model.evaluate(self.texts, self.labels)
+        self.is_loss_and_accuracy(scores)
+
+    def test_word_count_no_validation(self):
+        model = WordCountClassifier(self.label_names)
+        validation_results = model.train(self.texts, self.labels, validation_fraction=0.1)
+        self.is_loss_and_accuracy(validation_results)
+        validation_results = model.train(self.texts, self.labels)
+        self.assertEqual(None, validation_results)
+
+    def is_loss_and_accuracy(self, scores):
+        self.assertIsInstance(scores, list)
+        self.assertEqual(2, len(scores))
+        loss = [s[1] for s in scores if s[0] == "loss"][0]
+        self.assertIsInstance(loss, float)
+        acc = [s[1] for s in scores if s[0] == "acc"][0]
+        self.assertIsInstance(acc, float)

@@ -9,6 +9,11 @@ import numpy
 from keras.callbacks import ModelCheckpoint
 from keras.layers import LSTM, Bidirectional, Dense, Dropout, Embedding
 from keras.models import load_model, Sequential
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics import accuracy_score, log_loss
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.svm import SVC
 
 from mycroft.text import BagOfWordsEmbedder, TextSequenceEmbedder
 
@@ -53,10 +58,13 @@ class TextEmbeddingClassifier:
         def description_filename():
             return os.path.join(model_directory, TextEmbeddingClassifier.description_name)
 
+        if validation_fraction:
+            monitor = "val_loss"
+        else:
+            monitor = "loss"
         callbacks = None
         if model_directory is not None:
             os.makedirs(model_directory, exist_ok=True)
-            monitor = "val_loss"
             if validation_fraction:
                 callbacks = [ModelCheckpoint(filepath=os.path.join(model_directory, TextEmbeddingClassifier.model_name),
                                              monitor=monitor, save_best_only=True, verbose=verbose)]
@@ -64,8 +72,6 @@ class TextEmbeddingClassifier:
                 pickle.dump(self.embedder, f)
             with open(description_filename(), mode="w") as f:
                 f.write("%s" % self)
-        else:
-            monitor = "loss"
 
         training_vectors = self.embedder.encode(texts)
         history = self.model.fit(training_vectors, labels, epochs=epochs, batch_size=batch_size,
@@ -147,3 +153,56 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
     @property
     def embedding_size(self):
         return self.model.get_layer("rnn").input_shape[2]
+
+
+class WordCountClassifier:
+    def __init__(self, label_names, verbose=False, stop_words="english"):
+        self.label_names = label_names
+        self.model = Pipeline([
+            ("tfidf", TfidfVectorizer(sublinear_tf=True, stop_words=stop_words)),
+            ("svm", SVC(probability=True, verbose=verbose))
+        ])
+
+    def __repr__(self):
+        return "SVM TF-IDF classifier: %d labels" % self.num_labels
+
+    def train(self, texts, labels, validation_fraction=None, model_filename=None):
+        if validation_fraction:
+            train_texts, validation_texts, train_labels, validation_labels = \
+                train_test_split(texts, labels, test_size=validation_fraction)
+        else:
+            train_texts, train_labels = texts, labels
+        self.model.fit(train_texts, train_labels)
+        if model_filename:
+            self.save(model_filename)
+        if validation_fraction:
+            # noinspection PyUnboundLocalVariable,PyNoneFunctionAssignment
+            validation_results = self.evaluate(validation_texts, validation_labels)
+        else:
+            validation_results = None
+        return validation_results
+
+    def predict(self, texts):
+        label_probabilities = numpy.array(self.model.predict_proba(texts))
+        predicted_labels = label_probabilities.argmax(axis=1)
+        return label_probabilities, predicted_labels
+
+    def evaluate(self, texts, labels):
+        label_probabilities, predicted_labels = self.predict(texts)
+        return [
+            ("acc", accuracy_score(labels, predicted_labels)),
+            ("loss", log_loss(labels, label_probabilities, labels=range(self.num_labels)))
+        ]
+
+    @property
+    def num_labels(self):
+        return len(self.label_names)
+
+    def save(self, model_filename):
+        with open(model_filename, "wb") as f:
+            return pickle.dump(self, f)
+
+    @staticmethod
+    def load_model(model_filename):
+        with open(model_filename, "rb") as f:
+            return pickle.load(f)
