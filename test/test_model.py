@@ -141,6 +141,7 @@ class TestModel(TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "model.hd5")))
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "embedder.pk")))
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "description.txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "history.json")))
 
     def test_word_count(self):
         model_filename = os.path.join(self.model_directory, "word-count.pk")

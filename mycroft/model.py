@@ -1,5 +1,6 @@
 """Machine learning components"""
 import errno
+import json
 import os
 import pickle
 import sys
@@ -19,6 +20,7 @@ class TextEmbeddingClassifier:
     model_name = "model.hd5"
     embedder_name = "embedder.pk"
     description_name = "description.txt"
+    history_name = "history.json"
 
     labels_attribute = "labels"
 
@@ -63,6 +65,9 @@ class TextEmbeddingClassifier:
         def description_filename():
             return os.path.join(model_directory, TextEmbeddingClassifier.description_name)
 
+        def history_filename():
+            return os.path.join(model_directory, TextEmbeddingClassifier.history_name)
+
         def create_directory(directory):
             if six.PY3:
                 os.makedirs(directory, exist_ok=True)
@@ -93,6 +98,7 @@ class TextEmbeddingClassifier:
         labels = self.label_indexes(labels)
         history = self.model.fit(training_vectors, labels, epochs=epochs, batch_size=batch_size,
                                  validation_split=validation_fraction, verbose=verbose, callbacks=callbacks)
+        history.monitor = monitor
 
         if model_directory is not None:
             if not validation_fraction:
@@ -100,8 +106,11 @@ class TextEmbeddingClassifier:
             with h5py.File(model_filename()) as m:
                 m.attrs[TextEmbeddingClassifier.labels_attribute] = numpy.array(
                     [numpy.string_(numpy.str_(label_name)) for label_name in self.label_names])
+            with open(history_filename(), mode="w") as f:
+                h = {"epoch": history.epoch, "history": history.history, "monitor": history.monitor,
+                     "params": history.params}
+                json.dump(h, f, sort_keys=True, indent=4, separators=(",", ": "))
 
-        history.monitor = monitor
         return history
 
     def predict(self, texts, batch_size=32):
