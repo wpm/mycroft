@@ -220,7 +220,7 @@ class WordCountClassifier:
         label_probabilities, predicted_labels = self.predict(texts)
         return [
             ("acc", accuracy_score(labels, predicted_labels)),
-            ("loss", log_loss(labels, label_probabilities, labels=range(self.num_labels)))
+            ("loss", log_loss(labels, label_probabilities, labels=self.label_names))
         ]
 
     def label_indexes(self, labels):
