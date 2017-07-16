@@ -6,7 +6,6 @@ import pickle
 import sys
 from io import StringIO
 
-import h5py
 import numpy
 import six
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -16,23 +15,21 @@ from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
 
 
+def load_embedding_model(model_directory):
+    from keras.models import load_model
+    with open(os.path.join(model_directory, TextEmbeddingClassifier.classifier_name), mode="rb") as f:
+        model = pickle.load(f)
+    model.model = load_model(os.path.join(model_directory, TextEmbeddingClassifier.model_name))
+    return model
+
+
 class TextEmbeddingClassifier:
     model_name = "model.hd5"
-    embedder_name = "embedder.pk"
+    classifier_name = "classifier.pk"
     description_name = "description.txt"
     history_name = "history.json"
 
     labels_attribute = "labels"
-
-    @classmethod
-    def load_model(cls, model_directory):
-        from keras.models import load_model
-        model = load_model(os.path.join(model_directory, TextEmbeddingClassifier.model_name))
-        with h5py.File(os.path.join(model_directory, TextEmbeddingClassifier.model_name), "r") as m:
-            label_names = [name.decode("UTF-8") for name in list(m.attrs[TextEmbeddingClassifier.labels_attribute])]
-        with open(os.path.join(model_directory, TextEmbeddingClassifier.embedder_name), mode="rb") as f:
-            embedder = pickle.load(f)
-        return cls(model, embedder, label_names)
 
     def __init__(self, model, embedder, label_names):
         assert len(label_names) == len(set(label_names)), "Non-unique label names %s" % label_names
@@ -55,12 +52,17 @@ class TextEmbeddingClassifier:
 
         return "%s\n\n%s" % (repr(self), model_topology())
 
+    def __getstate__(self):
+        d = self.__dict__.copy()
+        del d["model"]
+        return d
+
     def train(self, texts, labels, epochs=10, batch_size=32, validation_fraction=None, model_directory=None, verbose=1):
         def model_filename():
             return os.path.join(model_directory, TextEmbeddingClassifier.model_name)
 
-        def embedder_filename():
-            return os.path.join(model_directory, TextEmbeddingClassifier.embedder_name)
+        def classifier_filename():
+            return os.path.join(model_directory, TextEmbeddingClassifier.classifier_name)
 
         def description_filename():
             return os.path.join(model_directory, TextEmbeddingClassifier.description_name)
@@ -89,8 +91,6 @@ class TextEmbeddingClassifier:
                 from keras.callbacks import ModelCheckpoint
                 callbacks = [ModelCheckpoint(filepath=os.path.join(model_directory, TextEmbeddingClassifier.model_name),
                                              monitor=monitor, save_best_only=True, verbose=verbose)]
-            with open(embedder_filename(), mode="wb") as f:
-                pickle.dump(self.embedder, f)
             with open(description_filename(), mode="w") as f:
                 f.write("%s" % self)
 
@@ -103,9 +103,8 @@ class TextEmbeddingClassifier:
         if model_directory is not None:
             if not validation_fraction:
                 self.model.save(model_filename())
-            with h5py.File(model_filename()) as m:
-                m.attrs[TextEmbeddingClassifier.labels_attribute] = numpy.array(
-                    [numpy.string_(numpy.str_(label_name)) for label_name in self.label_names])
+            with open(classifier_filename(), mode="wb") as f:
+                pickle.dump(self, f)
             with open(history_filename(), mode="w") as f:
                 h = {"epoch": history.epoch, "history": history.history, "monitor": history.monitor,
                      "params": history.params}
@@ -137,28 +136,9 @@ class TextEmbeddingClassifier:
         return len(self.label_names)
 
 
-class BagOfWordsEmbeddingClassifier(TextEmbeddingClassifier):
-    @classmethod
-    def create(cls, dropout, label_names, language_model="en"):
-        from keras.models import Sequential
-        from keras.layers import Dense, Dropout
-        from .text import BagOfWordsEmbedder
-
-        embedder = BagOfWordsEmbedder(language_model)
-        model = Sequential()
-        model.add(Dense(len(label_names), input_shape=embedder.encoding_shape, activation="softmax", name="softmax"))
-        model.add(Dropout(dropout, name="dropout"))
-        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-        return cls(model, embedder, label_names)
-
-    def __repr__(self):
-        return "Neural bag of words classifier: %d labels, dropout rate %0.2f\n%s" % (
-            self.num_labels, self.dropout, self.embedder)
-
-
 class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
-    @classmethod
-    def create(cls, vocabulary_size, sequence_length, rnn_type, rnn_units, dropout, label_names, language_model="en"):
+    def __init__(self, vocabulary_size, sequence_length, rnn_type, rnn_units, dropout, label_names,
+                 language_model="en"):
         from keras.models import Sequential
         from keras.layers import Bidirectional, Dense, Dropout, Embedding, GRU, LSTM
         from .text import TextSequenceEmbedder
@@ -174,7 +154,7 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
         model.add(Dense(len(label_names), activation="softmax", name="softmax"))
         model.add(Dropout(dropout, name="dropout"))
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-        return cls(model, embedder, label_names)
+        super(self.__class__, self).__init__(model, embedder, label_names)
 
     def __repr__(self):
         return "Neural text sequence classifier: %d labels, %d RNN units, dropout rate %0.2f\n%s" % (
@@ -191,6 +171,24 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
     @property
     def embedding_size(self):
         return self.model.get_layer("rnn").input_shape[2]
+
+
+class BagOfWordsEmbeddingClassifier(TextEmbeddingClassifier):
+    def __init__(self, dropout, label_names, language_model="en"):
+        from keras.models import Sequential
+        from keras.layers import Dense, Dropout
+        from .text import BagOfWordsEmbedder
+
+        embedder = BagOfWordsEmbedder(language_model)
+        model = Sequential()
+        model.add(Dense(len(label_names), input_shape=embedder.encoding_shape, activation="softmax", name="softmax"))
+        model.add(Dropout(dropout, name="dropout"))
+        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+        super(self.__class__, self).__init__(model, embedder, label_names)
+
+    def __repr__(self):
+        return "Neural bag of words classifier: %d labels, dropout rate %0.2f\n%s" % (
+            self.num_labels, self.dropout, self.embedder)
 
 
 class WordCountClassifier:

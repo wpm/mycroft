@@ -145,8 +145,8 @@ def neural_sequence_command(args):
                                                          args.label_name)
     if args.max_tokens is None:
         args.max_tokens = longest_text(texts, args.language_model)
-    model = TextSequenceEmbeddingClassifier.create(args.vocabulary_size, args.max_tokens, args.rnn_type, args.rnn_units,
-                                                   args.dropout, label_names, args.language_model)
+    model = TextSequenceEmbeddingClassifier(args.vocabulary_size, args.max_tokens, args.rnn_type, args.rnn_units,
+                                            args.dropout, label_names, args.language_model)
     train(args, texts, labels, model)
 
 
@@ -155,7 +155,7 @@ def neural_bow_command(args):
 
     texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.omit_labels, args.text_name,
                                                          args.label_name)
-    model = BagOfWordsEmbeddingClassifier.create(args.dropout, label_names, args.language_model)
+    model = BagOfWordsEmbeddingClassifier(args.dropout, label_names, args.language_model)
     train(args, texts, labels, model)
 
 
@@ -211,12 +211,14 @@ def evaluate_command(args):
 
 
 def load_model(name):
-    from .model import TextEmbeddingClassifier, WordCountClassifier
+    from .model import load_embedding_model, WordCountClassifier
 
     if os.path.isdir(name):
-        return TextEmbeddingClassifier.load_model(name)
-    else:
+        return load_embedding_model(name)
+    elif os.path.isfile(name):
         return WordCountClassifier.load_model(name)
+    else:
+        raise ValueError("Invalid model name %s" % name)
 
 
 def demo_command(_):

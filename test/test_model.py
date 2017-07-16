@@ -10,8 +10,8 @@ from unittest import TestCase
 import numpy
 from keras.callbacks import History
 
-from mycroft.model import TextEmbeddingClassifier, BagOfWordsEmbeddingClassifier, TextSequenceEmbeddingClassifier, \
-    WordCountClassifier
+from mycroft.model import BagOfWordsEmbeddingClassifier, TextSequenceEmbeddingClassifier, WordCountClassifier, \
+    load_embedding_model
 from test import to_lines
 
 
@@ -35,14 +35,14 @@ class TestModel(TestCase):
         shutil.rmtree(self.model_directory)
 
     def test_bag_of_words(self):
-        model = BagOfWordsEmbeddingClassifier.create(0.5, self.label_names)
+        model = BagOfWordsEmbeddingClassifier(0.5, self.label_names)
         self.assertEqual(2, model.num_labels)
         self.assertEqual(0.5, model.dropout)
         self.embedding_model_train_predict_evaluate(model)
         self.embedding_model_train_without_validation(model)
 
     def test_text_sequence(self):
-        model = TextSequenceEmbeddingClassifier.create(20000, 10, "lstm", 32, 0.5, self.label_names)
+        model = TextSequenceEmbeddingClassifier(20000, 10, "lstm", 32, 0.5, self.label_names)
         self.assertEqual(2, model.num_labels)
         self.assertEqual(0.5, model.dropout)
         self.assertEqual(10, model.embeddings_per_text)
@@ -56,10 +56,12 @@ class TestModel(TestCase):
                               model_directory=self.model_directory, verbose=0)
         self.assertIsInstance(history, History)
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "model.hd5")))
-        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "embedder.pk")))
+        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "classifier.pk")))
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "description.txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "history.json")))
         # Predict
-        loaded_model = TextEmbeddingClassifier.load_model(self.model_directory)
+        loaded_model = load_embedding_model(self.model_directory)
+        self.assertTrue(isinstance(loaded_model, model.__class__))
         n = len(self.texts)
         label_probabilities, predicted_labels = loaded_model.predict(self.texts)
         self.assertEqual((n, 2), label_probabilities.shape)
@@ -75,7 +77,7 @@ class TestModel(TestCase):
                               verbose=0)
         self.assertIsInstance(history, History)
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "model.hd5")))
-        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "embedder.pk")))
+        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "classifier.pk")))
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "description.txt")))
         self.assertTrue(os.path.exists(os.path.join(self.model_directory, "history.json")))
 
@@ -88,6 +90,7 @@ class TestModel(TestCase):
         self.assertTrue(os.path.exists(model_filename))
         # Predict
         loaded_model = WordCountClassifier.load_model(model_filename)
+        self.assertTrue(isinstance(loaded_model, model.__class__))
         n = len(self.texts)
         label_probabilities, predicted_labels = loaded_model.predict(self.texts)
         self.assertEqual((n, 2), label_probabilities.shape)
