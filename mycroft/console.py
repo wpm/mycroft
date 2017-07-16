@@ -4,6 +4,7 @@ Command line interface to the text classifier.
 from __future__ import print_function
 
 import argparse
+import os
 import textwrap
 
 import numpy
@@ -13,7 +14,7 @@ from sklearn.datasets import fetch_20newsgroups
 from mycroft import __version__
 
 
-def main():
+def main(args=None):
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description=textwrap.dedent("""
     Mycroft classifies text to categorical labels.
@@ -51,8 +52,7 @@ def main():
     # Predict, evaluate, and demo
     shared_test_arguments = argparse.ArgumentParser(add_help=False)
     shared_test_arguments.add_argument("test", help="test data file")
-    shared_test_arguments.add_argument("model_directory", metavar="model",
-                                       help="directory containing the trained model")
+    shared_test_arguments.add_argument("model", help="directory or file containing the trained model")
     shared_test_arguments.add_argument("--batch-size", metavar="SIZE", type=int, default=32,
                                        help="batch size (default 32)")
     shared_test_arguments.add_argument("--limit", type=int,
@@ -72,14 +72,16 @@ def main():
         The test data is a comma- or tab-delimited file with columns of texts and labels."""))
     evaluate_parser.add_argument("--label-name", metavar="NAME", default="label",
                                  help="name of the label column (default 'label')")
+    evaluate_parser.add_argument("--omit-labels", metavar="LABEL", nargs="*",
+                                 help="omit samples with these label values")
     evaluate_parser.set_defaults(func=evaluate_command)
 
     # Demo subcommand
     demo_parser = subparsers.add_parser("demo", description="Run a demo_command on 20 newsgroups data.")
     demo_parser.set_defaults(func=demo_command)
 
-    args = parser.parse_args()
-    args.func(args)
+    parsed_args = parser.parse_args(args=args)
+    parsed_args.func(parsed_args)
 
 
 def create_training_argument_groups(training_command):
@@ -182,12 +184,15 @@ def train(args, texts, labels, model):
 def predict_command(args):
     from .model import TextEmbeddingClassifier
 
-    model = TextEmbeddingClassifier.load_model(args.model_directory)
+    model = load_model(args.model)
     data = read_data_file(args.test, args.limit)
-    label_probabilities, predicted_labels = model.predict(data[args.text_name], args.batch_size)
+    if isinstance(model, TextEmbeddingClassifier):
+        label_probabilities, predicted_labels = model.predict(data[args.text_name], args.batch_size)
+    else:
+        label_probabilities, predicted_labels = model.predict(data[args.text_name])
     predictions = pandas.DataFrame(label_probabilities.reshape((len(data), model.num_labels)),
                                    columns=model.label_names)
-    predictions["predicted label"] = [model.label_names[i] for i in predicted_labels]
+    predictions["predicted label"] = predicted_labels
     data = data.join(predictions)
     print(data.to_csv(index=False))
 
@@ -195,11 +200,23 @@ def predict_command(args):
 def evaluate_command(args):
     from .model import TextEmbeddingClassifier
 
-    model = TextEmbeddingClassifier.load_model(args.model_directory)
+    model = load_model(args.model)
     texts, labels, _ = preprocess_labeled_data(args.test, args.limit, args.omit_labels, args.text_name, args.label_name,
                                                model.label_names)
-    results = model.evaluate(texts, labels, args.batch_size)
+    if isinstance(model, TextEmbeddingClassifier):
+        results = model.evaluate(texts, labels, args.batch_size)
+    else:
+        results = model.evaluate(texts, labels)
     print("\n" + " - ".join("%s: %0.5f" % (name, score) for name, score in results))
+
+
+def load_model(name):
+    from .model import TextEmbeddingClassifier, WordCountClassifier
+
+    if os.path.isdir(name):
+        return TextEmbeddingClassifier.load_model(name)
+    else:
+        return WordCountClassifier.load_model(name)
 
 
 def demo_command(_):

@@ -1,10 +1,8 @@
-# -*- coding: UTF-8 -*-
 from __future__ import unicode_literals
 
 import os
 import shutil
 import tempfile
-import textwrap
 from itertools import tee
 from random import shuffle
 from unittest import TestCase
@@ -14,82 +12,20 @@ from keras.callbacks import History
 
 from mycroft.model import TextEmbeddingClassifier, BagOfWordsEmbeddingClassifier, TextSequenceEmbeddingClassifier, \
     WordCountClassifier
+from test import to_lines
 
 
 class TestModel(TestCase):
-    joyce = textwrap.dedent("""
-    Stately, plump Buck Mulligan came from the stairhead, bearing a bowl of
-    lather on which a mirror and a razor lay crossed. A yellow dressinggown,
-    ungirdled, was sustained gently behind him on the mild morning air. He
-    held the bowl aloft and intoned:
-    
-    —Introibo ad altare Dei.
-    
-    Halted, he peered down the dark winding stairs and called out coarsely:
-    
-    —Come up, Kinch! Come up, you fearful jesuit!
-    
-    Solemnly he came forward and mounted the round gunrest. He faced about
-    and blessed gravely thrice the tower, the surrounding land and the
-    awaking mountains. Then, catching sight of Stephen Dedalus, he bent
-    towards him and made rapid crosses in the air, gurgling in his throat
-    and shaking his head. Stephen Dedalus, displeased and sleepy, leaned
-    his arms on the top of the staircase and looked coldly at the shaking
-    gurgling face that blessed him, equine in its length, and at the light
-    untonsured hair, grained and hued like pale oak.
-    
-    Buck Mulligan peeped an instant under the mirror and then covered the
-    bowl smartly.
-    
-    —Back to barracks! he said sternly.
-    """)
-
-    kafka = textwrap.dedent("""
-    One morning, when Gregor Samsa woke from troubled dreams, he found
-    himself transformed in his bed into a horrible vermin.  He lay on
-    his armour-like back, and if he lifted his head a little he could
-    see his brown belly, slightly domed and divided by arches into stiff
-    sections.  The bedding was hardly able to cover it and seemed ready
-    to slide off any moment.  His many legs, pitifully thin compared
-    with the size of the rest of him, waved about helplessly as he
-    looked.
-    
-    "What's happened to me?" he thought.  It wasn't a dream.  His room,
-    a proper human room although a little too small, lay peacefully
-    between its four familiar walls.  A collection of textile samples
-    lay spread out on the table - Samsa was a travelling salesman - and
-    above it there hung a picture that he had recently cut out of an
-    illustrated magazine and housed in a nice, gilded frame.  It showed
-    a lady fitted out with a fur hat and fur boa who sat upright,
-    raising a heavy fur muff that covered the whole of her lower arm
-    towards the viewer.
-    
-    Gregor then turned to look out the window at the dull weather.
-    Drops of rain could be heard hitting the pane, which made him feel
-    quite sad.  "How about if I sleep a little bit longer and forget all
-    this nonsense", he thought, but that was something he was unable to
-    do because he was used to sleeping on his right, and in his present
-    state couldn't get into that position.  However hard he threw
-    himself onto his right, he always rolled back to where he was.  He
-    must have tried it a hundred times, shut his eyes so that he
-    wouldn't have to look at the floundering legs, and only stopped when
-    he began to feel a mild, dull pain there that he had never felt
-    before.""")
-
     @staticmethod
     def create_data_set():
-        joyce_samples = TestModel.to_lines(TestModel.joyce)
-        kafka_samples = TestModel.to_lines(TestModel.kafka)
+        joyce_samples = to_lines("joyce.txt")
+        kafka_samples = to_lines("kafka.txt")
         samples = [(s, "Joyce") for s in joyce_samples] + [(s, "Kafka") for s in kafka_samples]
         shuffle(samples)
         s1, s2 = tee(samples)
         texts = [s[0] for s in s1]
         labels = [s[1] for s in s2]
         return texts, labels, sorted(set(labels))
-
-    @staticmethod
-    def to_lines(text):
-        return list(filter(None, text.split("\n")))
 
     def setUp(self):
         self.model_directory = tempfile.mkdtemp()
