@@ -118,7 +118,7 @@ def create_training_argument_groups(training_command):
     else:
         train_group.add_argument("--model-filename", metavar="FILENAME",
                                  help="file in which to to store the model (default do not store a model)")
-        train_group.add_argument("--verbose", action="store_true", help="verbose training output")
+        train_group.add_argument("--verbose", action="store_true", help="verbose training logging (default no logging)")
 
     if training_command in ["nbow", "nseq"]:
         language_group = \
