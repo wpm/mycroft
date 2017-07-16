@@ -80,12 +80,12 @@ class TestModel(TestCase):
     def create_data_set():
         joyce_samples = TestModel.to_lines(TestModel.joyce)
         kafka_samples = TestModel.to_lines(TestModel.kafka)
-        samples = [(s, 0) for s in joyce_samples] + [(s, 1) for s in kafka_samples]
+        samples = [(s, "Joyce") for s in joyce_samples] + [(s, "Kafka") for s in kafka_samples]
         shuffle(samples)
         s1, s2 = tee(samples)
         texts = [s[0] for s in s1]
         labels = [s[1] for s in s2]
-        return texts, labels, ["Joyce", "Kafka"]
+        return texts, labels, sorted(set(labels))
 
     @staticmethod
     def to_lines(text):
@@ -129,7 +129,7 @@ class TestModel(TestCase):
         self.assertEqual((n, 2), label_probabilities.shape)
         self.assertEqual(numpy.dtype("float32"), label_probabilities.dtype)
         self.assertEqual(n, len(predicted_labels))
-        self.assertTrue(set(predicted_labels).issubset({0, 1}))
+        self.assertTrue(set(predicted_labels).issubset({"Joyce", "Kafka"}))
         # Evaluate
         scores = loaded_model.evaluate(self.texts, self.labels)
         self.is_loss_and_accuracy(scores)
@@ -156,7 +156,7 @@ class TestModel(TestCase):
         self.assertEqual((n, 2), label_probabilities.shape)
         self.assertEqual(numpy.dtype("float64"), label_probabilities.dtype)
         self.assertEqual(n, len(predicted_labels))
-        self.assertTrue(set(predicted_labels).issubset({0, 1}))
+        self.assertTrue(set(predicted_labels).issubset({"Joyce", "Kafka"}))
         # Evaluate
         scores = loaded_model.evaluate(self.texts, self.labels)
         self.is_loss_and_accuracy(scores)

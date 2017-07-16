@@ -237,8 +237,8 @@ def preprocess_labeled_data(data_filename, limit, omit_labels, text_name, label_
     if omit_labels:
         data = data[~data[label_name].isin(omit_labels)]
     data[label_name] = pandas.Categorical(data[label_name].astype(str), categories=label_names)
-    labels = numpy.array(data[label_name].cat.codes)
-    label_names = data[label_name].cat.categories
+    labels = numpy.array(data[label_name])
+    label_names = list(data[label_name].cat.categories)
     return data[text_name], labels, label_names
 
 

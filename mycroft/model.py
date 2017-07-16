@@ -20,17 +20,20 @@ class TextEmbeddingClassifier:
     embedder_name = "embedder.pk"
     description_name = "description.txt"
 
+    labels_attribute = "labels"
+
     @classmethod
     def load_model(cls, model_directory):
         from keras.models import load_model
         model = load_model(os.path.join(model_directory, TextEmbeddingClassifier.model_name))
         with h5py.File(os.path.join(model_directory, TextEmbeddingClassifier.model_name), "r") as m:
-            label_names = [name.decode("UTF-8") for name in list(m.attrs["categories"])]
+            label_names = [name.decode("UTF-8") for name in list(m.attrs[TextEmbeddingClassifier.labels_attribute])]
         with open(os.path.join(model_directory, TextEmbeddingClassifier.embedder_name), mode="rb") as f:
             embedder = pickle.load(f)
         return cls(model, embedder, label_names)
 
     def __init__(self, model, embedder, label_names):
+        assert len(label_names) == len(set(label_names)), "Non-unique label names %s" % label_names
         self.model = model
         self.embedder = embedder
         self.label_names = label_names
@@ -87,6 +90,7 @@ class TextEmbeddingClassifier:
                 f.write("%s" % self)
 
         training_vectors = self.embedder.encode(texts)
+        labels = self.label_indexes(labels)
         history = self.model.fit(training_vectors, labels, epochs=epochs, batch_size=batch_size,
                                  validation_split=validation_fraction, verbose=verbose, callbacks=callbacks)
 
@@ -94,9 +98,8 @@ class TextEmbeddingClassifier:
             if not validation_fraction:
                 self.model.save(model_filename())
             with h5py.File(model_filename()) as m:
-                m.attrs["categories"] = numpy.array(
+                m.attrs[TextEmbeddingClassifier.labels_attribute] = numpy.array(
                     [numpy.string_(numpy.str_(label_name)) for label_name in self.label_names])
-                m.attrs["language_model"] = numpy.string_(numpy.str_(self.embedder.language_model))
 
         history.monitor = monitor
         return history
@@ -105,12 +108,16 @@ class TextEmbeddingClassifier:
         embeddings = self.embedder.encode(texts)
         label_probabilities = self.model.predict(embeddings, batch_size=batch_size, verbose=0)
         predicted_labels = label_probabilities.argmax(axis=1)
-        return label_probabilities, predicted_labels
+        return label_probabilities, [self.label_names[label_index] for label_index in predicted_labels]
 
     def evaluate(self, texts, labels, batch_size=32):
         embeddings = self.embedder.encode(texts)
+        labels = self.label_indexes(labels)
         metrics = self.model.evaluate(embeddings, labels, batch_size=batch_size, verbose=0)
         return list(zip(self.model.metrics_names, metrics))
+
+    def label_indexes(self, labels):
+        return [self.label_names.index(label) for label in labels]
 
     @property
     def dropout(self):
@@ -178,6 +185,7 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
 
 class WordCountClassifier:
     def __init__(self, label_names, verbose=False, stop_words="english"):
+        assert len(label_names) == len(set(label_names)), "Non-unique label names %s" % label_names
         self.label_names = label_names
         self.model = Pipeline([
             ("tfidf", TfidfVectorizer(sublinear_tf=True, stop_words=stop_words)),
@@ -193,7 +201,7 @@ class WordCountClassifier:
                 train_test_split(texts, labels, test_size=validation_fraction)
         else:
             train_texts, train_labels = texts, labels
-        self.model.fit(train_texts, train_labels)
+        self.model.fit(train_texts, self.label_indexes(train_labels))
         if model_filename:
             self.save(model_filename)
         if validation_fraction:
@@ -206,7 +214,7 @@ class WordCountClassifier:
     def predict(self, texts):
         label_probabilities = numpy.array(self.model.predict_proba(texts))
         predicted_labels = label_probabilities.argmax(axis=1)
-        return label_probabilities, predicted_labels
+        return label_probabilities, [self.label_names[label_index] for label_index in predicted_labels]
 
     def evaluate(self, texts, labels):
         label_probabilities, predicted_labels = self.predict(texts)
@@ -214,6 +222,9 @@ class WordCountClassifier:
             ("acc", accuracy_score(labels, predicted_labels)),
             ("loss", log_loss(labels, label_probabilities, labels=range(self.num_labels)))
         ]
+
+    def label_indexes(self, labels):
+        return [self.label_names.index(label) for label in labels]
 
     @property
     def num_labels(self):
