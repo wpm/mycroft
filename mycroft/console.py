@@ -9,6 +9,7 @@ import textwrap
 
 import numpy
 import pandas
+import six
 from sklearn.datasets import fetch_20newsgroups
 
 from mycroft import __version__
@@ -194,7 +195,10 @@ def predict_command(args):
                                    columns=model.label_names)
     predictions["predicted label"] = predicted_labels
     data = data.join(predictions)
-    print(data.to_csv(index=False))
+    if six.PY3:
+        print(data.to_csv(index=False))
+    else:
+        print(data.to_csv(index=False, encoding="UTF8"))
 
 
 def evaluate_command(args):
@@ -264,4 +268,7 @@ def preprocess_labeled_data(data_filename, limit, omit_labels, text_name, label_
 
 
 def read_data_file(data_filename, limit):
-    return pandas.read_csv(data_filename, sep=None, engine="python").dropna()[:limit]
+    if six.PY3:
+        return pandas.read_csv(data_filename, sep=None, engine="python").dropna()[:limit]
+    else:
+        return pandas.read_csv(data_filename, sep=None, engine="python", encoding="UTF-8").dropna()[:limit]

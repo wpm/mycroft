@@ -4,6 +4,7 @@ import tempfile
 from unittest import TestCase
 
 import pandas
+import six
 
 from mycroft.console import main
 from test import to_lines
@@ -19,7 +20,10 @@ class TestConsole(TestCase):
         # noinspection PyUnresolvedReferences
         data = pandas.concat([joyce, kafka]).sample(frac=1)
         self.data_filename = os.path.join(self.directory, "data.csv")
-        data.to_csv(self.data_filename, index=False)
+        if six.PY3:
+            data.to_csv(self.data_filename, index=False)
+        else:
+            data.to_csv(self.data_filename, index=False, encoding="UTF-8")
         self.model_directory = os.path.join(self.directory, "model")
 
     def tearDown(self):

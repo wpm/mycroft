@@ -23,7 +23,7 @@ def load_embedding_model(model_directory):
     return model
 
 
-class TextEmbeddingClassifier:
+class TextEmbeddingClassifier(object):
     model_name = "model.hd5"
     classifier_name = "classifier.pk"
     description_name = "description.txt"
