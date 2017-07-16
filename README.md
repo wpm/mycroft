@@ -38,7 +38,8 @@ Mycroft implements two kinds of word-embedding models.
 
   The same GloVe vectors are used to embed the text into matrices of size _sequence length × 300_, clipping or padding
   the first dimension for each individual text as needed.
-  An LSTM converts these embeddings to a single vector which a softmax layer then uses to make a label prediction.
+  A recursive neural network (either an LSTM or GRU) converts these embeddings to a single vector which a softmax layer
+  then uses to make a label prediction.
 
 As a comparison baseline Mycroft also implements one non-word embedding model.
 

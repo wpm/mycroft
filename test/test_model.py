@@ -106,7 +106,7 @@ class TestModel(TestCase):
         self.embedding_model_train_without_validation(model)
 
     def test_text_sequence(self):
-        model = TextSequenceEmbeddingClassifier.create(20000, 10, 32, 0.5, self.label_names)
+        model = TextSequenceEmbeddingClassifier.create(20000, 10, "lstm", 32, 0.5, self.label_names)
         self.assertEqual(2, model.num_labels)
         self.assertEqual(0.5, model.dropout)
         self.assertEqual(10, model.embeddings_per_text)

@@ -158,9 +158,9 @@ class BagOfWordsEmbeddingClassifier(TextEmbeddingClassifier):
 
 class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
     @classmethod
-    def create(cls, vocabulary_size, sequence_length, rnn_units, dropout, label_names, language_model="en"):
+    def create(cls, vocabulary_size, sequence_length, rnn_type, rnn_units, dropout, label_names, language_model="en"):
         from keras.models import Sequential
-        from keras.layers import Bidirectional, Dense, Dropout, Embedding, LSTM
+        from keras.layers import Bidirectional, Dense, Dropout, Embedding, GRU, LSTM
         from .text import TextSequenceEmbedder
 
         embedder = TextSequenceEmbedder(vocabulary_size, sequence_length, language_model)
@@ -169,7 +169,8 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
         embedding_size = embedder.embedding_size
         model.add(Embedding(embedder.vocabulary_size, embedding_size, weights=[embedder.embedding_matrix],
                             input_length=sequence_length, mask_zero=True, trainable=False))
-        model.add(Bidirectional(LSTM(rnn_units), name="rnn"))
+        rnn = {"lstm": LSTM, "gru": GRU}[rnn_type]
+        model.add(Bidirectional(rnn(rnn_units), name="rnn"))
         model.add(Dense(len(label_names), activation="softmax", name="softmax"))
         model.add(Dropout(dropout, name="dropout"))
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])

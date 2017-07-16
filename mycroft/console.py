@@ -90,6 +90,8 @@ def create_training_argument_groups(training_command):
                                                         description="Arguments for specifying the model configuration:")
     model_group.add_argument("--dropout", metavar="RATE", type=float, default=0.5, help="Dropout rate (default 0.5)")
     if training_command is "nseq":
+        model_group.add_argument("--rnn-type", metavar="TYPE", choices=["lstm", "gru"], default="lstm",
+                                 help="GRU or LSTM (default LSTM)")
         model_group.add_argument("--rnn-units", metavar="UNITS", type=int, default=64, help="RNN units (default 64)")
         model_group.add_argument("--max-tokens", metavar="TOKENS", type=int,
                                  help="Maximum number of tokens to embed (default longest text in the training data)")
@@ -141,8 +143,8 @@ def neural_sequence_command(args):
                                                          args.label_name)
     if args.max_tokens is None:
         args.max_tokens = longest_text(texts, args.language_model)
-    model = TextSequenceEmbeddingClassifier.create(args.vocabulary_size, args.max_tokens, args.rnn_units, args.dropout,
-                                                   label_names, args.language_model)
+    model = TextSequenceEmbeddingClassifier.create(args.vocabulary_size, args.max_tokens, args.rnn_type, args.rnn_units,
+                                                   args.dropout, label_names, args.language_model)
     train(args, texts, labels, model)
 
 
