@@ -53,8 +53,8 @@ def main():
     shared_test_arguments.add_argument("test", help="test data file")
     shared_test_arguments.add_argument("model_directory", metavar="model",
                                        help="directory containing the trained model")
-    shared_test_arguments.add_argument("--batch-size", metavar="SIZE", type=int, default=256,
-                                       help="batch size (default 256)")
+    shared_test_arguments.add_argument("--batch-size", metavar="SIZE", type=int, default=32,
+                                       help="batch size (default 32)")
     shared_test_arguments.add_argument("--limit", type=int,
                                        help="only use this many samples (default use all the data)")
     shared_test_arguments.add_argument("--text-name", metavar="NAME", default="text",
@@ -90,7 +90,7 @@ def create_training_argument_groups(training_command):
                                                         description="Arguments for specifying the model configuration:")
     model_group.add_argument("--dropout", metavar="RATE", type=float, default=0.5, help="Dropout rate (default 0.5)")
     if training_command is "nseq":
-        model_group.add_argument("--rnn-units", metavar="UNITS", type=int, default=128, help="RNN units (default 128)")
+        model_group.add_argument("--rnn-units", metavar="UNITS", type=int, default=64, help="RNN units (default 64)")
         model_group.add_argument("--max-tokens", metavar="TOKENS", type=int,
                                  help="Maximum number of tokens to embed (default longest text in the training data)")
 
@@ -110,7 +110,7 @@ def create_training_argument_groups(training_command):
                                                         description="Arguments for controlling the training procedure:")
     if training_command in ["nbow", "nseq"]:
         train_group.add_argument("--epochs", type=int, default=10, help="training epochs (default 10)")
-        train_group.add_argument("--batch-size", metavar="SIZE", type=int, default=256, help="batch size (default 256)")
+        train_group.add_argument("--batch-size", metavar="SIZE", type=int, default=32, help="batch size (default 32)")
         train_group.add_argument("--model-directory", metavar="DIRECTORY",
                                  help="directory in which to to store the model (default do not store a model)")
         train_group.add_argument("--logging", choices=["none", "progress", "epoch"], default="epoch",
