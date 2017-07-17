@@ -83,7 +83,7 @@ def create_training_argument_groups(training_command):
     model_group.add_argument("--dropout", metavar="RATE", type=float, default=0.5, help="Dropout rate (default 0.5)")
     if training_command is "nseq":
         model_group.add_argument("--rnn-type", metavar="TYPE", choices=["lstm", "gru"], default="lstm",
-                                 help="GRU or LSTM (default LSTM)")
+                                 help="LSTM or GRU (default LSTM)")
         model_group.add_argument("--rnn-units", metavar="UNITS", type=int, default=64, help="RNN units (default 64)")
         model_group.add_argument("--max-tokens", metavar="TOKENS", type=int,
                                  help="Maximum number of tokens to embed (default longest text in the training data)")
@@ -103,10 +103,10 @@ def create_training_argument_groups(training_command):
     train_group = training_arguments.add_argument_group("training",
                                                         description="Arguments for controlling the training procedure:")
     if training_command in ["nbow", "nseq"]:
-        train_group.add_argument("--epochs", type=int, default=10, help="training epochs (default 10)")
+        train_group.add_argument("--epochs", type=int, default=10, help="number of training epochs (default 10)")
         train_group.add_argument("--batch-size", metavar="SIZE", type=int, default=32, help="batch size (default 32)")
         train_group.add_argument("--model-directory", metavar="DIRECTORY",
-                                 help="directory in which to to store the model (default do not store a model)")
+                                 help="directory in which to store the model (default do not store a model)")
         train_group.add_argument("--logging", choices=["none", "progress", "epoch"], default="epoch",
                                  help="no logging, a progress bar, one line per epoch (default epoch)")
     else:
