@@ -36,8 +36,8 @@ class TestConsole(TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "classifier.pk")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "description.txt")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "history.json")))
-        self.run_command("predict %s %s" % (self.data_filename, self.model_directory))
-        self.run_command("evaluate %s %s" % (self.data_filename, self.model_directory))
+        self.run_command("predict %s %s" % (self.model_directory, self.data_filename))
+        self.run_command("evaluate %s %s" % (self.model_directory, self.data_filename))
 
     def test_nseq(self):
         self.run_command(
@@ -46,15 +46,15 @@ class TestConsole(TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "classifier.pk")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "description.txt")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "history.json")))
-        self.run_command("predict %s %s" % (self.data_filename, self.model_directory))
-        self.run_command("evaluate %s %s" % (self.data_filename, self.model_directory))
+        self.run_command("predict %s %s" % (self.model_directory, self.data_filename))
+        self.run_command("evaluate %s %s" % (self.model_directory, self.data_filename))
 
     def test_svm(self):
         model_filename = os.path.join(self.directory, "model.pk")
         self.run_command("train-svm %s --model-filename %s" % (self.data_filename, model_filename))
         self.assertTrue(os.path.isfile(model_filename))
-        self.run_command("predict %s %s" % (self.data_filename, model_filename))
-        self.run_command("evaluate %s %s" % (self.data_filename, model_filename))
+        self.run_command("predict %s %s" % (model_filename, self.data_filename))
+        self.run_command("evaluate %s %s" % (model_filename, self.data_filename))
 
     @staticmethod
     def run_command(s):

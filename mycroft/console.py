@@ -51,30 +51,19 @@ def main(args=None):
     svm_parser.set_defaults(func=svm_command)
 
     # Predict, evaluate, and demo
-    shared_test_arguments = argparse.ArgumentParser(add_help=False)
-    shared_test_arguments.add_argument("test", help="test data file")
-    shared_test_arguments.add_argument("model", help="directory or file containing the trained model")
-    shared_test_arguments.add_argument("--batch-size", metavar="SIZE", type=int, default=32,
-                                       help="batch size (default 32)")
-    shared_test_arguments.add_argument("--limit", type=int,
-                                       help="only use this many samples (default use all the data)")
-    shared_test_arguments.add_argument("--text-name", metavar="NAME", default="text",
-                                       help="name of the text column (default 'text')")
 
     # Predict subcommand
-    predict_parser = subparsers.add_parser("predict", parents=[shared_test_arguments], description=textwrap.dedent("""
+    predict_parser = subparsers.add_parser("predict", parents=[create_test_argument_groups("predict")],
+                                           description=textwrap.dedent("""
         Use a model to predict labels. This prints the test data, adding columns containing predicted probabilities for 
         each category and the most probable category."""))
     predict_parser.set_defaults(func=predict_command)
 
     # Evaluate subcommand
-    evaluate_parser = subparsers.add_parser("evaluate", parents=[shared_test_arguments], description=textwrap.dedent("""
-        Score the model's performance on a labeled data set. 
+    evaluate_parser = subparsers.add_parser("evaluate", parents=[create_test_argument_groups("evaluate")],
+                                            description=textwrap.dedent("""
+        Evaluate the model's performance on a labeled data set. 
         The test data is a comma- or tab-delimited file with columns of texts and labels."""))
-    evaluate_parser.add_argument("--label-name", metavar="NAME", default="label",
-                                 help="name of the label column (default 'label')")
-    evaluate_parser.add_argument("--omit-labels", metavar="LABEL", nargs="*",
-                                 help="omit samples with these label values")
     evaluate_parser.set_defaults(func=evaluate_command)
 
     # Demo subcommand
@@ -136,6 +125,26 @@ def create_training_argument_groups(training_command):
                                     help="the spaCy language model to use (default 'en')")
 
     return training_arguments
+
+
+def create_test_argument_groups(test_command):
+    assert test_command in ["predict", "evaluate"]
+    test_arguments = argparse.ArgumentParser(add_help=False)
+    test_arguments.add_argument("model", help="directory or file containing the trained model")
+    data_group = test_arguments.add_argument_group("data", description="Arguments for specifying the data to use:")
+
+    data_group.add_argument("test", help="test data file")
+    data_group.add_argument("--batch-size", metavar="SIZE", type=int, default=32,
+                            help="batch size, ignored for SVM models (default 32)")
+    data_group.add_argument("--limit", type=int, help="only use this many samples (default use all the data)")
+    data_group.add_argument("--text-name", metavar="NAME", default="text",
+                            help="name of the text column (default 'text')")
+    if test_command == "evaluate":
+        data_group.add_argument("--label-name", metavar="NAME", default="label",
+                                help="name of the label column (default 'label')")
+        data_group.add_argument("--omit-labels", metavar="LABEL", nargs="*",
+                                help="omit samples with these label values")
+    return test_arguments
 
 
 def neural_sequence_command(args):
@@ -242,17 +251,19 @@ def demo_command(_):
     print("Train a model.\n")
     print("mycroft train-nbow %s --model-directory %s --epochs 2\n" % (
         train_filename, model_directory))
-    training_args = argparse.Namespace(training=train_filename, limit=None, text_name="text", label_name="label",
+    training_args = argparse.Namespace(training=train_filename,
+                                       limit=None, text_name="text", label_name="label", omit_labels=None,
                                        validation=0.2, dropout=0.5,
                                        language_model="en",
-                                       epochs=2, batch_size=256,
+                                       epochs=2, batch_size=32,
                                        model_directory=model_directory, logging="epoch")
     # noinspection PyTypeChecker
     neural_bow_command(training_args)
     print("\nEvaluate it on the test data.\n")
-    print("mycroft evaluate %s model-directory %s\n" % (test_filename, model_directory))
-    evaluate_args = argparse.Namespace(model_directory=model_directory, test=test_filename, limit=None,
-                                       text_name="text", label_name="label", batch_size=256, language_model="en")
+    print("mycroft evaluate %s %s\n" % (model_directory, test_filename))
+    evaluate_args = argparse.Namespace(model=model_directory, test=test_filename, limit=None,
+                                       text_name="text", label_name="label", omit_labels=None, batch_size=32,
+                                       language_model="en")
     # noinspection PyTypeChecker
     evaluate_command(evaluate_args)
 
