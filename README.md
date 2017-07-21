@@ -2,13 +2,15 @@
 
 Mycroft is a toolkit for doing text classification with word embeddings.
 It provides a command line interface for training and evaluating different kinds of neural network classifiers and a
-programmatic interface for incorportating these classifiers into other programs.
+programmatic interface for incorporating these classifiers into other programs.
 
 ## Installation
 
 Install Mycroft by running `python setup.py install`.
 
-Mycroft depends uses the [spaCy](https://spacy.io/) text natural language processing toolkit to parse text.
+Mycroft uses the [spaCy](https://spacy.io/) text natural language processing toolkit to process text.
+The built-in models just use spaCy for tokenization, but models built on Mycroft's programmatic interface may use
+spaCy's more advanced features like part-of-speech tagging and syntactic parsing.
 By default it installs spaCy's English language text model, though you may specify other language models from the
 command line.
 See spaCy's [models documentation](https://spacy.io/docs/usage/models) for more information.
