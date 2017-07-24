@@ -108,6 +108,17 @@ class TestModel(TestCase):
         validation_results = model.train(self.texts, self.labels)
         self.assertEqual(None, validation_results)
 
+    def test_bag_of_words_with_validation_data(self):
+        model = BagOfWordsEmbeddingClassifier(0.5, self.label_names)
+        history = model.train(self.texts, self.labels, epochs=2, batch_size=10,
+                              validation_data=(self.texts, self.labels),
+                              model_directory=self.model_directory, verbose=0)
+        self.assertIsInstance(history, History)
+        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "model.hd5")))
+        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "classifier.pk")))
+        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "description.txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.model_directory, "history.json")))
+
     def is_loss_and_accuracy(self, scores):
         self.assertIsInstance(scores, list)
         self.assertEqual(2, len(scores))

@@ -26,9 +26,14 @@ def limit_argument(parser):
     parser.add_argument("--limit", type=int, help="only train on this many samples (default use all the data)")
 
 
-def validation_argument(parser):
-    parser.add_argument("--validation", metavar="PORTION", type=float,
-                        help="portion of data to use for validation (default none)")
+def validation_fraction_argument(parser):
+    parser.add_argument("--validation-fraction", metavar="FRACTION", type=float,
+                        help="fraction of data to use for validation (default none, use all data for training)")
+
+
+def validation_data_argument(parser):
+    parser.add_argument("--validation-data", metavar="FILE",
+                        help="validation data file (default no validation data)")
 
 
 def text_name_argument(parser, default="text"):
@@ -49,7 +54,8 @@ def data_group(parser):
     data_group = data_group_name(parser)
     training_data_argument(data_group)
     limit_argument(data_group)
-    validation_argument(data_group)
+    validation_fraction_argument(data_group)
+    validation_data_argument(data_group)
     text_name_argument(data_group)
     label_name_argument(data_group)
     omit_labels(data_group)

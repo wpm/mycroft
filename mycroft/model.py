@@ -60,7 +60,8 @@ class TextEmbeddingClassifier(object):
         del d["model"]
         return d
 
-    def train(self, texts, labels, epochs=10, batch_size=32, validation_fraction=None, model_directory=None, verbose=1):
+    def train(self, texts, labels, epochs=10, batch_size=32, validation_fraction=None, validation_data=None,
+              model_directory=None, verbose=1):
         def model_filename():
             return os.path.join(model_directory, TextEmbeddingClassifier.model_name)
 
@@ -83,14 +84,19 @@ class TextEmbeddingClassifier(object):
                     if e.errno != errno.EEXIST:
                         raise
 
-        if validation_fraction:
+        assert not (
+            validation_fraction and validation_data), "Both validation fraction and validation data are specified"
+        doing_validation = validation_fraction or validation_data
+        if doing_validation:
             monitor = "val_loss"
+            if validation_data:
+                validation_data = (self.embedder.encode(validation_data[0]), self.label_indexes(validation_data[1]))
         else:
             monitor = "loss"
         callbacks = None
         if model_directory is not None:
             create_directory(model_directory)
-            if validation_fraction:
+            if doing_validation:
                 from keras.callbacks import ModelCheckpoint
                 callbacks = [ModelCheckpoint(filepath=os.path.join(model_directory, TextEmbeddingClassifier.model_name),
                                              monitor=monitor, save_best_only=True, verbose=verbose)]
@@ -100,11 +106,12 @@ class TextEmbeddingClassifier(object):
         training_vectors = self.embedder.encode(texts)
         labels = self.label_indexes(labels)
         history = self.model.fit(training_vectors, labels, epochs=epochs, batch_size=batch_size,
-                                 validation_split=validation_fraction, verbose=verbose, callbacks=callbacks)
+                                 validation_split=validation_fraction, validation_data=validation_data,
+                                 verbose=verbose, callbacks=callbacks)
         history.monitor = monitor
 
         if model_directory is not None:
-            if not validation_fraction:
+            if not os.path.isfile(model_filename()):
                 self.model.save(model_filename())
             with open(classifier_filename(), mode="wb") as f:
                 pickle.dump(self, f)
@@ -245,17 +252,22 @@ class WordCountClassifier:
     def __repr__(self):
         return "SVM TF-IDF classifier: %d labels" % self.num_labels
 
-    def train(self, texts, labels, validation_fraction=None, model_filename=None):
+    def train(self, texts, labels, validation_fraction=None, validation_data=None, model_filename=None):
+        assert not (
+            validation_fraction and validation_data), "Both validation fraction and validation data are specified"
         if validation_fraction:
             train_texts, validation_texts, train_labels, validation_labels = \
                 train_test_split(texts, labels, test_size=validation_fraction)
         else:
             train_texts, train_labels = texts, labels
+            if validation_data:
+                validation_texts, validation_labels = validation_data
+            else:
+                validation_texts = validation_labels = None
         self.model.fit(train_texts, self.label_indexes(train_labels))
         if model_filename:
             self.save(model_filename)
-        if validation_fraction:
-            # noinspection PyUnboundLocalVariable,PyNoneFunctionAssignment
+        if validation_texts:
             validation_results = self.evaluate(validation_texts, validation_labels)
         else:
             validation_results = None
@@ -296,7 +308,13 @@ class WordCountClassifier:
         model_group = arguments.model_group_name(training_arguments)
         arguments.dropout_argument(model_group)
 
-        arguments.data_group(training_arguments)
+        data_group = arguments.data_group_name(training_arguments)
+        arguments.training_data_argument(data_group)
+        arguments.limit_argument(data_group)
+        arguments.validation_fraction_argument(data_group)
+        arguments.text_name_argument(data_group)
+        arguments.label_name_argument(data_group)
+        arguments.omit_labels(data_group)
 
         train_group = arguments.training_group_name(training_arguments)
         train_group.add_argument("--model-filename", metavar="FILENAME",

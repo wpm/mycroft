@@ -6,6 +6,7 @@ from __future__ import print_function
 import argparse
 import os
 import textwrap
+from functools import partial
 
 import numpy
 import pandas
@@ -37,7 +38,7 @@ def main(args=None):
                                                        """Train a neural text sequence model.
                                                        This applies a recursive neural network over a sequence of word 
                                                        embeddings to make a softmax prediction."""))
-    neural_sequence_parser.set_defaults(func=neural_sequence_command)
+    neural_sequence_parser.set_defaults(func=partial(train_command, parser, create_neural_sequence_model))
 
     # train-nbow subcommand
     from .model import BagOfWordsEmbeddingClassifier
@@ -47,7 +48,7 @@ def main(args=None):
                                                   """Train a neural bag of words model.
                                                   This uses the mean of the word embeddings in a document to make a
                                                   softmax prediction."""))
-    neural_bow_parser.set_defaults(func=neural_bow_command)
+    neural_bow_parser.set_defaults(func=partial(train_command, parser, create_neural_bow_model))
 
     # train-svm subcommand
     from .model import WordCountClassifier
@@ -99,26 +100,28 @@ def create_test_argument_groups(test_command):
     return test_arguments
 
 
-def neural_sequence_command(args):
+def train_command(parser, model_factory, args):
+    if args.validation_fraction and args.validation_data:
+        parser.error("Cannot specify both a validation fraction and a validation set.")
+    label_names, labels, texts, validation_data = preprocess_training_data(args)
+    model = model_factory(args, label_names=label_names, labels=labels, texts=texts)
+    train(args, texts, labels, model, validation_data)
+
+
+def create_neural_sequence_model(args, **kwargs):
     from .model import TextSequenceEmbeddingClassifier
     from .text import longest_text
 
-    texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.omit_labels, args.text_name,
-                                                         args.label_name)
     if args.max_tokens is None:
-        args.max_tokens = longest_text(texts, args.language_model)
-    model = TextSequenceEmbeddingClassifier(args.vocabulary_size, args.max_tokens, args.rnn_type, args.rnn_units,
-                                            args.dropout, label_names, args.language_model)
-    train(args, texts, labels, model)
+        args.max_tokens = longest_text(kwargs["texts"], args.language_model)
+    return TextSequenceEmbeddingClassifier(args.vocabulary_size, args.max_tokens, args.rnn_type, args.rnn_units,
+                                           args.dropout, kwargs["label_names"], args.language_model)
 
 
-def neural_bow_command(args):
+def create_neural_bow_model(args, **kwargs):
     from .model import BagOfWordsEmbeddingClassifier
 
-    texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.omit_labels, args.text_name,
-                                                         args.label_name)
-    model = BagOfWordsEmbeddingClassifier(args.dropout, label_names, args.language_model)
-    train(args, texts, labels, model)
+    return BagOfWordsEmbeddingClassifier(args.dropout, kwargs["label_names"], args.language_model)
 
 
 def svm_command(args):
@@ -127,14 +130,31 @@ def svm_command(args):
     texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.omit_labels, args.text_name,
                                                          args.label_name)
     model = WordCountClassifier(label_names, args.verbose)
-    results = model.train(texts, labels, args.validation, args.model_filename)
+    results = model.train(texts, labels, validation_fraction=args.validation_fraction,
+                          model_filename=args.model_filename)
     if results:
         print("Validation scores: %s" % " - ".join("%s: %0.5f" % (score, value) for score, value in sorted(results)))
 
 
-def train(args, texts, labels, model):
+def preprocess_training_data(args):
+    texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.omit_labels, args.text_name,
+                                                         args.label_name)
+    if args.validation_data:
+        validation_texts, validation_labels, _ = preprocess_labeled_data(args.validation_data, args.limit,
+                                                                         args.omit_labels,
+                                                                         args.text_name,
+                                                                         args.label_name)
+        validation_data = (validation_texts, validation_labels)
+    else:
+        validation_data = None
+    return label_names, labels, texts, validation_data
+
+
+def train(args, texts, labels, model, validation_data=None):
     verbose = {"none": 0, "progress": 1, "epoch": 2}[args.logging]
-    history = model.train(texts, labels, args.epochs, args.batch_size, args.validation, args.model_directory,
+    history = model.train(texts, labels, epochs=args.epochs, batch_size=args.batch_size,
+                          validation_fraction=args.validation_fraction, validation_data=validation_data,
+                          model_directory=args.model_directory,
                           verbose=verbose)
     losses = history.history[history.monitor]
     best_loss = min(losses)
@@ -205,12 +225,12 @@ def demo_command(_):
         train_filename, model_directory))
     training_args = argparse.Namespace(training=train_filename,
                                        limit=None, text_name="text", label_name="label", omit_labels=None,
-                                       validation=0.2, dropout=0.5,
+                                       validation_fraction=0.2, validation_data=None, dropout=0.5,
                                        language_model="en",
                                        epochs=2, batch_size=32,
                                        model_directory=model_directory, logging="epoch")
     # noinspection PyTypeChecker
-    neural_bow_command(training_args)
+    partial(train_command, None, create_neural_bow_model)(training_args)
     print("\nEvaluate it on the test data.\n")
     print("mycroft evaluate %s %s\n" % (model_directory, test_filename))
     evaluate_args = argparse.Namespace(model=model_directory, test=test_filename, limit=None,
