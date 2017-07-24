@@ -30,7 +30,9 @@ def main(args=None):
     # Training
 
     # train-nseq subcommand
-    neural_sequence_parser = subparsers.add_parser("train-nseq", parents=[create_training_argument_groups("nseq")],
+    from .model import TextSequenceEmbeddingClassifier
+    neural_sequence_parser = subparsers.add_parser("train-nseq",
+                                                   parents=[TextSequenceEmbeddingClassifier.training_argument_parser()],
                                                    description=textwrap.dedent(
                                                        """Train a neural text sequence model.
                                                        This applies a recursive neural network over a sequence of word 
@@ -38,7 +40,9 @@ def main(args=None):
     neural_sequence_parser.set_defaults(func=neural_sequence_command)
 
     # train-nbow subcommand
-    neural_bow_parser = subparsers.add_parser("train-nbow", parents=[create_training_argument_groups("nbow")],
+    from .model import BagOfWordsEmbeddingClassifier
+    neural_bow_parser = subparsers.add_parser("train-nbow",
+                                              parents=[BagOfWordsEmbeddingClassifier.training_argument_parser()],
                                               description=textwrap.dedent(
                                                   """Train a neural bag of words model.
                                                   This uses the mean of the word embeddings in a document to make a
@@ -46,7 +50,8 @@ def main(args=None):
     neural_bow_parser.set_defaults(func=neural_bow_command)
 
     # train-svm subcommand
-    svm_parser = subparsers.add_parser("train-svm", parents=[(create_training_argument_groups("svm"))],
+    from .model import WordCountClassifier
+    svm_parser = subparsers.add_parser("train-svm", parents=[WordCountClassifier.training_argument_parser()],
                                        description="Train a support vector machine model over tf-idf counts.")
     svm_parser.set_defaults(func=svm_command)
 
@@ -72,59 +77,6 @@ def main(args=None):
 
     parsed_args = parser.parse_args(args=args)
     parsed_args.func(parsed_args)
-
-
-def create_training_argument_groups(training_command):
-    assert training_command in ["nseq", "nbow", "svm"]
-    training_arguments = argparse.ArgumentParser(add_help=False)
-
-    model_group = training_arguments.add_argument_group("model",
-                                                        description="Arguments for specifying the model configuration:")
-    model_group.add_argument("--dropout", metavar="RATE", type=float, default=0.5, help="Dropout rate (default 0.5)")
-    if training_command is "nseq":
-        model_group.add_argument("--rnn-type", metavar="TYPE", choices=["lstm", "gru"], default="lstm",
-                                 help="LSTM or GRU (default LSTM)")
-        model_group.add_argument("--rnn-units", metavar="UNITS", type=int, default=64, help="RNN units (default 64)")
-        model_group.add_argument("--max-tokens", metavar="TOKENS", type=int,
-                                 help="Maximum number of tokens to embed (default longest text in the training data)")
-
-    data_group = training_arguments.add_argument_group("data",
-                                                       description="Arguments for specifying the data to train on:")
-    data_group.add_argument("training", help="training data file")
-    data_group.add_argument("--limit", type=int, help="only train on this many samples (default use all the data)")
-    data_group.add_argument("--validation", metavar="PORTION", type=float,
-                            help="portion of data to use for validation (default none)")
-    data_group.add_argument("--text-name", metavar="NAME", default="text",
-                            help="name of the text column (default 'text')")
-    data_group.add_argument("--label-name", metavar="NAME", default="label",
-                            help="name of the label column (default 'label')")
-    data_group.add_argument("--omit-labels", metavar="LABEL", nargs="*", help="omit samples with these label values")
-
-    train_group = training_arguments.add_argument_group("training",
-                                                        description="Arguments for controlling the training procedure:")
-    if training_command in ["nbow", "nseq"]:
-        train_group.add_argument("--epochs", type=int, default=10, help="number of training epochs (default 10)")
-        train_group.add_argument("--batch-size", metavar="SIZE", type=int, default=32, help="batch size (default 32)")
-        train_group.add_argument("--model-directory", metavar="DIRECTORY",
-                                 help="directory in which to store the model (default do not store a model)")
-        train_group.add_argument("--logging", choices=["none", "progress", "epoch"], default="epoch",
-                                 help="no logging, a progress bar, one line per epoch (default epoch)")
-    else:
-        train_group.add_argument("--model-filename", metavar="FILENAME",
-                                 help="file in which to to store the model (default do not store a model)")
-        train_group.add_argument("--verbose", action="store_true", help="verbose training logging (default no logging)")
-
-    if training_command in ["nbow", "nseq"]:
-        language_group = \
-            training_arguments.add_argument_group("language",
-                                                  description="Arguments for controlling language processing:")
-        if training_command is "nseq":
-            language_group.add_argument("--vocabulary-size", metavar="SIZE", default=20000,
-                                        help="number of words in the vocabulary (default 20000)")
-        language_group.add_argument("--language-model", metavar="MODEL", default="en",
-                                    help="the spaCy language model to use (default 'en')")
-
-    return training_arguments
 
 
 def create_test_argument_groups(test_command):

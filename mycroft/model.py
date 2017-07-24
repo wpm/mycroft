@@ -1,4 +1,5 @@
 """Machine learning components"""
+import argparse
 import errno
 import json
 import os
@@ -13,6 +14,8 @@ from sklearn.metrics import accuracy_score, log_loss
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
+
+import mycroft.arguments as arguments
 
 
 def load_embedding_model(model_directory):
@@ -156,6 +159,29 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
         super(self.__class__, self).__init__(model, embedder, label_names)
 
+    @staticmethod
+    def training_argument_parser():
+        training_arguments = argparse.ArgumentParser(add_help=False)
+
+        model_group = arguments.model_group_name(training_arguments)
+        arguments.dropout_argument(model_group)
+        model_group.add_argument("--rnn-type", metavar="TYPE", choices=["gru", "lstm"], default="gru",
+                                 help="GRU or LSTM (default GRU)")
+        model_group.add_argument("--rnn-units", metavar="UNITS", type=int, default=64,
+                                 help="RNN units (default 64)")
+        model_group.add_argument("--max-tokens", metavar="TOKENS", type=int,
+                                 help="Maximum number of tokens to embed (default longest text in the training data)")
+
+        arguments.data_group(training_arguments)
+
+        arguments.training_group(training_arguments)
+
+        language_group = arguments.langauge_group_name(training_arguments)
+        arguments.vocabulary_size_argument(language_group)
+        arguments.language_model_argument(language_group)
+
+        return training_arguments
+
     def __repr__(self):
         return "Neural text sequence classifier: %d labels, %d RNN units, dropout rate %0.2f\n%s" % (
             self.num_labels, self.rnn_units, self.dropout, self.embedder)
@@ -185,6 +211,22 @@ class BagOfWordsEmbeddingClassifier(TextEmbeddingClassifier):
         model.add(Dropout(dropout, name="dropout"))
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
         super(self.__class__, self).__init__(model, embedder, label_names)
+
+    @staticmethod
+    def training_argument_parser():
+        training_arguments = argparse.ArgumentParser(add_help=False)
+
+        model_group = arguments.model_group_name(training_arguments)
+        arguments.dropout_argument(model_group)
+
+        arguments.data_group(training_arguments)
+
+        arguments.training_group(training_arguments)
+
+        language_group = arguments.langauge_group_name(training_arguments)
+        arguments.language_model_argument(language_group)
+
+        return training_arguments
 
     def __repr__(self):
         return "Neural bag of words classifier: %d labels, dropout rate %0.2f\n%s" % (
@@ -246,3 +288,19 @@ class WordCountClassifier:
     def load_model(model_filename):
         with open(model_filename, "rb") as f:
             return pickle.load(f)
+
+    @staticmethod
+    def training_argument_parser():
+        training_arguments = argparse.ArgumentParser(add_help=False)
+
+        model_group = arguments.model_group_name(training_arguments)
+        arguments.dropout_argument(model_group)
+
+        arguments.data_group(training_arguments)
+
+        train_group = arguments.training_group_name(training_arguments)
+        train_group.add_argument("--model-filename", metavar="FILENAME",
+                                 help="file in which to to store the model (default do not store a model)")
+        train_group.add_argument("--verbose", action="store_true", help="verbose training logging (default no logging)")
+
+        return training_arguments

@@ -16,7 +16,7 @@ command line.
 See spaCy's [models documentation](https://spacy.io/docs/usage/models) for more information.
 
 
-## Running
+## Running from the Command Line
 
 Run Mycroft with the command `mycroft`.
 Subcommands enable you to train models and use them to make predictions on unlabeled data sets.
@@ -49,7 +49,13 @@ As a comparison baseline Mycroft also implements one non-word embedding model.
 
   This model trains an SVM over TF-IDF of words.
 
-These models are available programmatically through the `BagOfWordsEmbeddingClassifier`,
-`TextSequenceEmbeddingClassifier`, and `WordCountClassifier` classes in `mycroft.model`.
 
- 
+## Programmatic Interface
+
+You can write your own Keras-based text-embedding classfiers by extending the `TextEmbeddingClassifier` base class in
+`mycroft.model`.
+See the built-in `BagOfWordsEmbeddingClassifier` and `TextSequenceEmbeddingClassifier` classes for examples on how to
+do this.
+This allows you to focus on just writing the model while reusing Mycroft's pandas data processing, incorporation of
+word embedding vectors, the prediction and evaluation code which remains the same regardless of model, and a command
+line interface.
