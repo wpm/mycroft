@@ -2,22 +2,37 @@
 Natural language processing components.
 """
 import operator
+from functools import partial
 
 import numpy
-from keras.preprocessing.sequence import pad_sequences
 
 
 def longest_text(texts, language_model="en"):
+    """
+    :param texts: texts in training data
+    :type texts: sequence of str
+    :param language_model: spaCy language model name
+    :type language_model: str
+    :return: the number of tokens in the longest text in the data
+    :rtype: int
+    """
     return max(len(document) for document in text_parser(language_model).pipe(texts))
 
 
-class Embedder(object):
-    def __init__(self, language_model="en"):
-        self.text_parser = text_parser(language_model)
+class Embedder:
+    """
+    Base class of classes that convert text to continuous vector embeddings. Derived classes must implement the encode
+    function.
 
-    def __repr__(self):
-        return "%s: %s, embedding shape %s" % (
-            self.__class__.__name__, self.text_parser.meta["name"], self.encoding_shape)
+    Embedders use the spaCy package to process the text and map it to embedding vectors.
+    """
+
+    def __init__(self, language_model="en"):
+        """
+        :param language_model: the name of the spaCy language model to use
+        :type language_model: str
+        """
+        self.text_parser = text_parser(language_model)
 
     def __getstate__(self):
         d = self.__dict__.copy()
@@ -37,23 +52,34 @@ class Embedder(object):
         return self.text_parser.vocab.vectors_length
 
     def encode(self, texts):
-        raise NotImplementedError()
+        """
+        Encode a sequence of texts as distributed vectors
 
-    @property
-    def encoding_shape(self):
+        :param texts: texts to encode
+        :type texts: sequence of str
+        :return: text encodings
+        :rtype: numpy.array
+        """
         raise NotImplementedError()
 
 
 class BagOfWordsEmbedder(Embedder):
+    """
+    Encode a sequence of words as a single vector that is mean of their embeddings.
+    """
+
     def encode(self, texts):
         return numpy.array([document.vector for document in self.text_parser.pipe(texts)])
 
-    @property
-    def encoding_shape(self):
-        return tuple((self.text_parser.vocab.vectors_length,))
+    def __repr__(self):
+        return "Bag of words embedder: %s" % (self.text_parser.meta["name"])
 
 
 class TextSequenceEmbedder(Embedder):
+    """
+    Encode a sequence of words as a matrix of their embeddings.
+    """
+
     def __init__(self, vocabulary_size, sequence_length, language_model="en"):
         def lexeme_embeddings(parser, vocabulary_size):
             lexemes = sorted((lexeme for lexeme in parser.vocab if lexeme.has_vector),
@@ -69,23 +95,26 @@ class TextSequenceEmbedder(Embedder):
             self.embedding_matrix[index] = vector
             self.vocabulary[token] = index
 
-    def __repr__(self):
-        return super(self.__class__, self).__repr__() + ", embedding matrix %s" % (self.embedding_matrix.shape,)
-
     def encode(self, texts):
+        from keras.preprocessing.sequence import pad_sequences
+
         token_index_sequences = pad_sequences(
             list([self.vocabulary.get(token.orth_, 0) for token in document]
                  for document in self.text_parser.pipe(texts)),
             maxlen=self.sequence_length)
         return numpy.array(token_index_sequences)
 
+    def embedding_layer_factory(self):
+        from keras.layers import Embedding
+        return partial(Embedding, self.vocabulary_size, self.embedding_size, weights=[self.embedding_matrix])
+
+    def __repr__(self):
+        return "Text sequence embedder: %s, embedding matrix %s" % (
+            self.text_parser.meta["name"], self.embedding_matrix.shape)
+
     @property
     def vocabulary_size(self):
         return self.embedding_matrix.shape[0]
-
-    @property
-    def encoding_shape(self):
-        return tuple((self.sequence_length,))
 
 
 text_parser_singleton = None

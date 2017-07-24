@@ -29,7 +29,7 @@ setup(
     url="https://github.com/wpm/mycroft",
     license="",
     entry_points={
-        "console_scripts": ["mycroft=mycroft.console:main"],
+        "console_scripts": ["mycroft=mycroft.console:default_main"],
     },
     author="W.P. McNeill",
     author_email="billmcn@gmail.com",

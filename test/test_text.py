@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import os
 import pickle
 import shutil
@@ -28,14 +26,11 @@ class TestText(TestCase):
         embedder = Embedder()
         with self.assertRaises(NotImplementedError):
             embedder.encode(["one two three"])
-        with self.assertRaises(NotImplementedError):
-            embedder.encoding_shape()
 
     def test_bag_of_words_embedder(self):
         embedder = BagOfWordsEmbedder()
-        self.assertEqual("BagOfWordsEmbedder: core_web_sm, embedding shape (300,)", str(embedder))
+        self.assertEqual("Bag of words embedder: core_web_sm", str(embedder))
         self.assertEqual("en", embedder.language_model)
-        self.assertEqual((300,), embedder.encoding_shape)
         self.assertEqual(300, embedder.embedding_size)
         self.assertFalse(hasattr(embedder, "embedding_matrix"))
         embedding = embedder.encode(self.texts)
@@ -44,10 +39,9 @@ class TestText(TestCase):
 
     def test_text_sequence_embedder(self):
         embedder = TextSequenceEmbedder(10000, 50)
-        self.assertEqual("TextSequenceEmbedder: core_web_sm, embedding shape (50,), embedding matrix (10000, 300)",
+        self.assertEqual("Text sequence embedder: core_web_sm, embedding matrix (10000, 300)",
                          str(embedder))
         self.assertEqual("en", embedder.language_model)
-        self.assertEqual((50,), embedder.encoding_shape)
         self.assertEqual(300, embedder.embedding_size)
         self.assertEqual(10000, embedder.vocabulary_size)
         self.assertTrue(hasattr(embedder, "embedding_matrix"))
@@ -60,7 +54,7 @@ class TestText(TestCase):
 class TestTextSerialization(TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.mkdtemp()
-        self.texts = [u"The quick brown fox", u"jumped over the lazy dog."]
+        self.texts = ["The quick brown fox", "jumped over the lazy dog."]
 
     def tearDown(self):
         shutil.rmtree(self.temporary_directory)

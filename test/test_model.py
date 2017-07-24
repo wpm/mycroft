@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import os
 import shutil
 import tempfile
@@ -34,23 +32,24 @@ class TestModel(TestCase):
         shutil.rmtree(self.model_directory)
 
     def test_bag_of_words(self):
-        model = BagOfWordsEmbeddingClassifier(0.5, self.label_names)
+        model = BagOfWordsEmbeddingClassifier((self.texts, self.labels, self.label_names))
         self.assertEqual(2, model.num_labels)
         self.assertEqual(0.5, model.dropout)
         self.embedding_model_train_predict_evaluate(model)
         self.embedding_model_train_without_validation(model)
 
     def test_text_sequence(self):
-        model = TextSequenceEmbeddingClassifier(20000, 10, "lstm", 32, 0.5, self.label_names)
+        model = TextSequenceEmbeddingClassifier((self.texts, self.labels, self.label_names))
         self.assertEqual(2, model.num_labels)
         self.assertEqual(0.5, model.dropout)
-        self.assertEqual(10, model.embeddings_per_text)
+        # The longest text in the training data is 22 tokens.
+        self.assertEqual(22, model.embeddings_per_text)
         self.assertEqual(300, model.embedding_size)
-        self.assertEqual(32, model.rnn_units)
+        self.assertEqual(64, model.rnn_units)
         self.embedding_model_train_predict_evaluate(model)
 
     def test_bag_of_words_with_validation_data(self):
-        model = BagOfWordsEmbeddingClassifier(0.5, self.label_names)
+        model = BagOfWordsEmbeddingClassifier((self.texts, self.labels, self.label_names))
         history = model.train(self.texts, self.labels, epochs=2, batch_size=10,
                               validation_data=(self.texts, self.labels),
                               model_directory=self.model_directory, verbose=0)

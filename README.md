@@ -1,8 +1,14 @@
 # Mycroft
 
 Mycroft is a toolkit for doing text classification with word embeddings.
-It provides a command line interface for training and evaluating different kinds of neural network classifiers and a
-programmatic interface for incorporating these classifiers into other programs.
+
+Out of the box Mycroft provides a command line interface for training and evaluating different kinds of neural network
+classifiers.
+It also provides a programmatic interface that help you write you own models. 
+This interface allows you to focus on writing the model while getting data munging processing, text processing and
+embedding, prediction and evaluation code which remains the same regardless of model, and a command line interface for
+free.
+
 
 ## Installation
 
@@ -25,10 +31,6 @@ Run `mycroft --help` for details about specific commands.
 The training data is a comma- or tab-delimited file with column of text and a column of labels.
 The test data is in the same format without the labels.
 
-Run `mycroft demo` to see a quick example of the command line syntax and data formats.
-
-## Classifier Models
-
 Mycroft implements two kinds of word-embedding models.
 
 * __Neural bag of words__
@@ -40,15 +42,15 @@ Mycroft implements two kinds of word-embedding models.
 
   The same GloVe vectors are used to embed the text into matrices of size _sequence length × 300_, clipping or padding
   the first dimension for each individual text as needed.
-  A recursive neural network (either an LSTM or GRU) converts these embeddings to a single vector which a softmax layer
-  then uses to make a label prediction.
+  A recursive neural network (either a GRU or an LSTM) converts these embeddings to a single vector which a softmax
+  layer then uses to make a label prediction.
+
+Run `mycroft demo` to see a quick example of the command line syntax and data formats.
+
 
 ## Programmatic Interface
 
-You can write your own Keras-based text-embedding classfiers by extending the `TextEmbeddingClassifier` base class in
-`mycroft.model`.
-See the built-in `BagOfWordsEmbeddingClassifier` and `TextSequenceEmbeddingClassifier` classes for examples on how to
-do this.
-This allows you to focus on just writing the model while reusing Mycroft's pandas data processing, incorporation of
-word embedding vectors, the prediction and evaluation code which remains the same regardless of model, and a command
-line interface.
+You can write your own Keras-based text-embedding classfiers by extending the `mycroft.model.TextEmbeddingClassifier`
+base class in and using subclasses of `mycroft.text.Embedder` to handle text processing and word embedding.
+
+See `convolution_net.py` in the `examples` for detailed instructions on how to do this.

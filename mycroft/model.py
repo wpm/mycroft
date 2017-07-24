@@ -1,35 +1,66 @@
 """Machine learning components"""
 import argparse
-import errno
+import inspect
 import json
 import os
 import pickle
 import sys
 from io import StringIO
 
-import six
-from keras.callbacks import TensorBoard
-
-import mycroft.arguments as arguments
+from .text import longest_text
 
 
 def load_embedding_model(model_directory):
+    """
+    Load a trained model.
+
+    :param model_directory: directory in which the model was saved
+    :type model_directory: str
+    :return: the model
+    :rtype: TextEmbeddingClassifier
+    """
     from keras.models import load_model
+
     with open(os.path.join(model_directory, TextEmbeddingClassifier.classifier_name), mode="rb") as f:
         model = pickle.load(f)
     model.model = load_model(os.path.join(model_directory, TextEmbeddingClassifier.model_name))
     return model
 
 
-class TextEmbeddingClassifier(object):
+class TextEmbeddingClassifier:
+    """
+    Base class for models that can do text classification using text vector embeddings.
+
+    Derived classes must define a constructor that takes a training data argument followed by model hyper-parameters.
+    The training data argument is a 3-ple (texts, labels, label names). The label names must be passed up to this
+    constructor. The texts and labels are present in case they are needed to determine hyper-parameters. (See
+    TextSequenceEmbeddingClassifier for an example of this.
+
+    When one of these classes is passed a part of the model_specification argument to mycroft.console.main, Mycroft will
+    create command line arguments for all the hyper-parameter arguments in the construction. Positional constructor
+    arguments will be positional command line arguments, and keyword constructor arguments will be command line options.
+    Derived classes may optionally supply a CUSTOM_COMMAND_LINE_OPTIONS dictionary, which specifies additional keyword
+    arguments to provide to the argparse.addArgument command.
+    """
+    # Names of files created in the model directory.
     model_name = "model.hd5"
     classifier_name = "classifier.pk"
     description_name = "description.txt"
     history_name = "history.json"
 
-    labels_attribute = "labels"
+    CUSTOM_COMMAND_LINE_OPTIONS = {}
 
     def __init__(self, model, embedder, label_names):
+        """
+        Derived classes instantiate an embedder and compile a model, which are passed up to here.
+
+        :param model: the model
+        :type model: keras.models.Sequential
+        :param embedder: embedder that converts text to vector embeddings
+        :type embedder:  mycroft.text.Embedder
+        :param label_names: all the label names in the data
+        :type label_names: list of str
+        """
         assert len(label_names) == len(set(label_names)), "Non-unique label names %s" % label_names
         self.model = model
         self.embedder = embedder
@@ -37,16 +68,11 @@ class TextEmbeddingClassifier(object):
 
     def __str__(self):
         def model_topology():
-            if six.PY3:
-                # Keras' model summary prints to standard out. This trick of capturing the output causes an error when
-                # running under Python 2.7.
-                old_stdout = sys.stdout
-                sys.stdout = s = StringIO()
-                self.model.summary()
-                sys.stdout = old_stdout
-                return s.getvalue()
-            else:
-                return ""
+            old_stdout = sys.stdout
+            sys.stdout = s = StringIO()
+            self.model.summary()
+            sys.stdout = old_stdout
+            return s.getvalue()
 
         return "%s\n\n%s" % (repr(self), model_topology())
 
@@ -70,14 +96,7 @@ class TextEmbeddingClassifier(object):
             return os.path.join(model_directory, TextEmbeddingClassifier.history_name)
 
         def create_directory(directory):
-            if six.PY3:
-                os.makedirs(directory, exist_ok=True)
-            else:
-                try:
-                    os.makedirs(directory)
-                except OSError as e:
-                    if e.errno != errno.EEXIST:
-                        raise
+            os.makedirs(directory, exist_ok=True)
 
         assert not (
             validation_fraction and validation_data), "Both validation fraction and validation data are specified"
@@ -89,6 +108,8 @@ class TextEmbeddingClassifier(object):
         else:
             monitor = "loss"
         if tensor_board_directory:
+            from keras.callbacks import TensorBoard
+
             callbacks = [TensorBoard(log_dir=tensor_board_directory)]
         else:
             callbacks = []
@@ -96,6 +117,7 @@ class TextEmbeddingClassifier(object):
             create_directory(model_directory)
             if doing_validation:
                 from keras.callbacks import ModelCheckpoint
+                # noinspection PyTypeChecker
                 callbacks.append(
                     ModelCheckpoint(filepath=os.path.join(model_directory, TextEmbeddingClassifier.model_name),
                                     monitor=monitor, save_best_only=True, verbose=verbose))
@@ -137,56 +159,75 @@ class TextEmbeddingClassifier(object):
         return [self.label_names.index(label) for label in labels]
 
     @property
-    def dropout(self):
-        return self.model.get_layer("dropout").rate
-
-    @property
     def num_labels(self):
         return len(self.label_names)
 
+    @classmethod
+    def create_from_command_line_arguments(cls, training, command_line_arguments):
+        args = command_line_arguments.__dict__
+        spec = inspect.getfullargspec(cls.__init__)
+        filtered_args = dict((k, v) for k, v in args.items() if k in spec.args)
+        return cls(tuple(training), **filtered_args)
+
+    @classmethod
+    def command_line_arguments(cls, parser=argparse.ArgumentParser(add_help=False)):
+        def additional_options(name):
+            options = cls.CUSTOM_COMMAND_LINE_OPTIONS.get(name, {})
+            # The type= argument is handled by custom_type.
+            options.pop("type", None)
+            return options
+
+        def custom_type(name, default):
+            if name in cls.CUSTOM_COMMAND_LINE_OPTIONS:
+                return cls.CUSTOM_COMMAND_LINE_OPTIONS.get("type", type(default))
+            return type(default)
+
+        spec = inspect.getfullargspec(cls.__init__)
+        # Build command line arguments out of keyword arguments to the constructor and their defaults.
+        for name, default in zip(spec.args[-len(spec.defaults):], spec.defaults):
+            parser.add_argument("--" + name.replace("_", "-"), type=custom_type(name, default), default=default,
+                                **additional_options(name))
+        return parser
+
 
 class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
-    def __init__(self, vocabulary_size, sequence_length, rnn_type, rnn_units, dropout, label_names,
-                 language_model="en"):
+    VOCABULARY_SIZE = 20000
+    RNN_UNITS = 64
+    RNN_TYPE = "gru"
+    DROPOUT = 0.5
+    LANGUAGE_MODEL = "en"
+
+    CUSTOM_COMMAND_LINE_OPTIONS = {
+        "sequence_length": {"help": "Maximum number of tokens per text (default use longest in the data)", "type": int,
+                            "metavar": "LENGTH"},
+        "vocabulary_size": {"help": "number of words in the vocabulary (default %d)" % VOCABULARY_SIZE,
+                            "metavar": "SIZE"},
+        "rnn_type": {"choices": ["gru", "lstm"], "help": "RNN type (default %s)" % RNN_TYPE},
+        "rnn_units": {"help": "RNN units (default %d)" % RNN_UNITS, "metavar": "UNITS"},
+        "dropout": {"help": "dropout rate (default %0.2f)" % DROPOUT},
+        "language_model": {"help": "The spaCy language model to use (default '%s')" % LANGUAGE_MODEL, "metavar": "NAME"}
+    }
+
+    def __init__(self, training,
+                 sequence_length=None, vocabulary_size=VOCABULARY_SIZE, language_model=LANGUAGE_MODEL,
+                 rnn_type=RNN_TYPE, rnn_units=RNN_UNITS, dropout=DROPOUT):
         from keras.models import Sequential
-        from keras.layers import Bidirectional, Dense, Dropout, Embedding, GRU, LSTM
+        from keras.layers import Bidirectional, Dense, Dropout, GRU, LSTM
         from .text import TextSequenceEmbedder
+
+        label_names = training[2]
+        if sequence_length is None:
+            sequence_length = longest_text(training[0], language_model)
 
         embedder = TextSequenceEmbedder(vocabulary_size, sequence_length, language_model)
         model = Sequential()
-        sequence_length = embedder.encoding_shape[0]
-        embedding_size = embedder.embedding_size
-        model.add(Embedding(embedder.vocabulary_size, embedding_size, weights=[embedder.embedding_matrix],
-                            input_length=sequence_length, mask_zero=True, trainable=False))
+        model.add(embedder.embedding_layer_factory()(input_length=sequence_length, mask_zero=True, trainable=False))
         rnn = {"lstm": LSTM, "gru": GRU}[rnn_type]
         model.add(Bidirectional(rnn(rnn_units), name="rnn"))
         model.add(Dense(len(label_names), activation="softmax", name="softmax"))
         model.add(Dropout(dropout, name="dropout"))
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-        super(self.__class__, self).__init__(model, embedder, label_names)
-
-    @staticmethod
-    def training_argument_parser():
-        training_arguments = argparse.ArgumentParser(add_help=False)
-
-        model_group = arguments.model_group_name(training_arguments)
-        arguments.dropout_argument(model_group)
-        model_group.add_argument("--rnn-type", metavar="TYPE", choices=["gru", "lstm"], default="gru",
-                                 help="GRU or LSTM (default GRU)")
-        model_group.add_argument("--rnn-units", metavar="UNITS", type=int, default=64,
-                                 help="RNN units (default 64)")
-        model_group.add_argument("--max-tokens", metavar="TOKENS", type=int,
-                                 help="Maximum number of tokens to embed (default longest text in the training data)")
-
-        arguments.data_group(training_arguments)
-
-        arguments.training_group(training_arguments)
-
-        language_group = arguments.langauge_group_name(training_arguments)
-        arguments.vocabulary_size_argument(language_group)
-        arguments.language_model_argument(language_group)
-
-        return training_arguments
+        super().__init__(model, embedder, label_names)
 
     def __repr__(self):
         return "Neural text sequence classifier: %d labels, %d RNN units, dropout rate %0.2f\n%s" % (
@@ -204,36 +245,37 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
     def embedding_size(self):
         return self.model.get_layer("rnn").input_shape[2]
 
+    @property
+    def dropout(self):
+        return self.model.get_layer("dropout").rate
+
 
 class BagOfWordsEmbeddingClassifier(TextEmbeddingClassifier):
-    def __init__(self, dropout, label_names, language_model="en"):
+    DROPOUT = 0.5
+    LANGUAGE_MODEL = "en"
+
+    CUSTOM_COMMAND_LINE_OPTIONS = {
+        "dropout": {"help": "dropout rate (default %0.2f)" % DROPOUT},
+        "language_model": {"help": "the spaCy language model to use (default '%s')" % LANGUAGE_MODEL, "metavar": "NAME"}
+    }
+
+    def __init__(self, training, dropout=DROPOUT, language_model=LANGUAGE_MODEL):
         from keras.models import Sequential
         from keras.layers import Dense, Dropout
         from .text import BagOfWordsEmbedder
 
+        label_names = training[2]
         embedder = BagOfWordsEmbedder(language_model)
         model = Sequential()
-        model.add(Dense(len(label_names), input_shape=embedder.encoding_shape, activation="softmax", name="softmax"))
+        model.add(Dense(len(label_names), input_shape=(embedder.embedding_size,), activation="softmax", name="softmax"))
         model.add(Dropout(dropout, name="dropout"))
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-        super(self.__class__, self).__init__(model, embedder, label_names)
-
-    @staticmethod
-    def training_argument_parser():
-        training_arguments = argparse.ArgumentParser(add_help=False)
-
-        model_group = arguments.model_group_name(training_arguments)
-        arguments.dropout_argument(model_group)
-
-        arguments.data_group(training_arguments)
-
-        arguments.training_group(training_arguments)
-
-        language_group = arguments.langauge_group_name(training_arguments)
-        arguments.language_model_argument(language_group)
-
-        return training_arguments
+        super().__init__(model, embedder, label_names)
 
     def __repr__(self):
         return "Neural bag of words classifier: %d labels, dropout rate %0.2f\n%s" % (
             self.num_labels, self.dropout, self.embedder)
+
+    @property
+    def dropout(self):
+        return self.model.get_layer("dropout").rate
