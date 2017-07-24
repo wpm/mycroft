@@ -136,7 +136,7 @@ def train(args, texts, labels, model, validation_data=None):
     verbose = {"none": 0, "progress": 1, "epoch": 2}[args.logging]
     history = model.train(texts, labels, epochs=args.epochs, batch_size=args.batch_size,
                           validation_fraction=args.validation_fraction, validation_data=validation_data,
-                          model_directory=args.model_directory,
+                          model_directory=args.model_directory, tensor_board_directory=args.tensor_board,
                           verbose=verbose)
     losses = history.history[history.monitor]
     best_loss = min(losses)
@@ -207,7 +207,7 @@ def demo_command(_):
                                        limit=None, text_name="text", label_name="label", omit_labels=None,
                                        validation_fraction=0.2, validation_data=None, dropout=0.5,
                                        language_model="en",
-                                       epochs=2, batch_size=32,
+                                       epochs=2, batch_size=32, tensor_board=None,
                                        model_directory=model_directory, logging="epoch")
     # noinspection PyTypeChecker
     partial(train_command, None, create_neural_bow_model)(training_args)

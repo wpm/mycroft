@@ -7,13 +7,8 @@ import pickle
 import sys
 from io import StringIO
 
-import numpy
 import six
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import accuracy_score, log_loss
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.svm import SVC
+from keras.callbacks import TensorBoard
 
 import mycroft.arguments as arguments
 
@@ -61,7 +56,7 @@ class TextEmbeddingClassifier(object):
         return d
 
     def train(self, texts, labels, epochs=10, batch_size=32, validation_fraction=None, validation_data=None,
-              model_directory=None, verbose=1):
+              model_directory=None, tensor_board_directory=None, verbose=1):
         def model_filename():
             return os.path.join(model_directory, TextEmbeddingClassifier.model_name)
 
@@ -93,13 +88,17 @@ class TextEmbeddingClassifier(object):
                 validation_data = (self.embedder.encode(validation_data[0]), self.label_indexes(validation_data[1]))
         else:
             monitor = "loss"
-        callbacks = None
+        if tensor_board_directory:
+            callbacks = [TensorBoard(log_dir=tensor_board_directory)]
+        else:
+            callbacks = []
         if model_directory is not None:
             create_directory(model_directory)
             if doing_validation:
                 from keras.callbacks import ModelCheckpoint
-                callbacks = [ModelCheckpoint(filepath=os.path.join(model_directory, TextEmbeddingClassifier.model_name),
-                                             monitor=monitor, save_best_only=True, verbose=verbose)]
+                callbacks.append(
+                    ModelCheckpoint(filepath=os.path.join(model_directory, TextEmbeddingClassifier.model_name),
+                                    monitor=monitor, save_best_only=True, verbose=verbose))
             with open(description_filename(), mode="w") as f:
                 f.write("%s" % self)
 

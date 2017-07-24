@@ -86,12 +86,18 @@ def logging_argument(parser, default="epoch"):
                         help="no logging, a progress bar, one line per epoch (default %s)" % default)
 
 
+def tensor_board_argument(parser):
+    parser.add_argument("--tensor-board", metavar="DIRECTORY",
+                        help="directory in which to create TensorBoard training logs (default do not create them)")
+
+
 def training_group(parser):
     train_group = training_group_name(parser)
     epochs_argument(train_group)
     batch_size_argument(train_group)
     model_directory_argument(train_group)
     logging_argument(train_group)
+    tensor_board_argument(train_group)
     return train_group
 
 
