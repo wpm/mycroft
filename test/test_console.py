@@ -49,13 +49,6 @@ class TestConsole(TestCase):
         self.run_command("predict %s %s" % (self.model_directory, self.data_filename))
         self.run_command("evaluate %s %s" % (self.model_directory, self.data_filename))
 
-    def test_svm(self):
-        model_filename = os.path.join(self.directory, "model.pk")
-        self.run_command("train-svm %s --model-filename %s" % (self.data_filename, model_filename))
-        self.assertTrue(os.path.isfile(model_filename))
-        self.run_command("predict %s %s" % (model_filename, self.data_filename))
-        self.run_command("evaluate %s %s" % (model_filename, self.data_filename))
-
     @staticmethod
     def run_command(s):
         return main(s.split())

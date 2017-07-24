@@ -50,12 +50,6 @@ def main(args=None):
                                                   softmax prediction."""))
     neural_bow_parser.set_defaults(func=partial(train_command, parser, create_neural_bow_model))
 
-    # train-svm subcommand
-    from .model import WordCountClassifier
-    svm_parser = subparsers.add_parser("train-svm", parents=[WordCountClassifier.training_argument_parser()],
-                                       description="Train a support vector machine model over tf-idf counts.")
-    svm_parser.set_defaults(func=svm_command)
-
     # Predict, evaluate, and demo
 
     # Predict subcommand
@@ -124,18 +118,6 @@ def create_neural_bow_model(args, **kwargs):
     return BagOfWordsEmbeddingClassifier(args.dropout, kwargs["label_names"], args.language_model)
 
 
-def svm_command(args):
-    from .model import WordCountClassifier
-
-    texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.omit_labels, args.text_name,
-                                                         args.label_name)
-    model = WordCountClassifier(label_names, args.verbose)
-    results = model.train(texts, labels, validation_fraction=args.validation_fraction,
-                          model_filename=args.model_filename)
-    if results:
-        print("Validation scores: %s" % " - ".join("%s: %0.5f" % (score, value) for score, value in sorted(results)))
-
-
 def preprocess_training_data(args):
     texts, labels, label_names = preprocess_labeled_data(args.training, args.limit, args.omit_labels, args.text_name,
                                                          args.label_name)
@@ -196,12 +178,10 @@ def evaluate_command(args):
 
 
 def load_model(name):
-    from .model import load_embedding_model, WordCountClassifier
+    from .model import load_embedding_model
 
     if os.path.isdir(name):
         return load_embedding_model(name)
-    elif os.path.isfile(name):
-        return WordCountClassifier.load_model(name)
     else:
         raise ValueError("Invalid model name %s" % name)
 

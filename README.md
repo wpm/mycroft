@@ -43,13 +43,6 @@ Mycroft implements two kinds of word-embedding models.
   A recursive neural network (either an LSTM or GRU) converts these embeddings to a single vector which a softmax layer
   then uses to make a label prediction.
 
-As a comparison baseline Mycroft also implements one non-word embedding model.
-
-* __Word count__
-
-  This model trains an SVM over TF-IDF of words.
-
-
 ## Programmatic Interface
 
 You can write your own Keras-based text-embedding classfiers by extending the `TextEmbeddingClassifier` base class in
