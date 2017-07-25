@@ -45,6 +45,12 @@ class TestConsole(TestCase):
         self.run_command("predict %s %s" % (self.model_directory, self.data_filename))
         self.run_command("evaluate %s %s" % (self.model_directory, self.data_filename))
 
+    def test_demo(self):
+        self.run_command("demo --directory %s" % self.directory)
+        self.assertTrue(os.path.isfile(os.path.join(self.directory, "train.csv")))
+        self.assertTrue(os.path.isfile(os.path.join(self.directory, "test.csv")))
+        self.assertTrue(os.path.isdir(os.path.join(self.directory, "model")))
+
     @staticmethod
     def run_command(s):
         return default_main(s.split())

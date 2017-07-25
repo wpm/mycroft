@@ -2,6 +2,7 @@
 Command line interface to the text classifier.
 """
 import argparse
+import os
 import textwrap
 from functools import partial
 
@@ -71,6 +72,7 @@ def main(model_specifications, args=None):
 
     # Demo subcommand
     demo_parser = subparsers.add_parser("demo", description="Run a demo_command on 20 newsgroups data.")
+    demo_parser.add_argument("--directory", default=".", help="directory in which to run demo (default current)")
     demo_parser.set_defaults(func=demo_command)
 
     parsed_args = parser.parse_args(args=args)
@@ -193,7 +195,7 @@ def read_data_file(data_filename, limit):
     return pandas.read_csv(data_filename, sep=None, engine="python").dropna()[:limit]
 
 
-def demo_command(_):
+def demo_command(args):
     def create_data_file(partition, filename, samples):
         data = pandas.DataFrame(
             {"text": partition.data,
@@ -201,17 +203,18 @@ def demo_command(_):
         data.to_csv(filename, index=False)
         return filename
 
+    os.makedirs(args.directory, exist_ok=True)
     print("Download a portion of the 20 Newsgroups data and create train.csv and test.csv.")
     newsgroups_train = fetch_20newsgroups(subset="train", remove=("headers", "footers", "quotes"))
     newsgroups_test = fetch_20newsgroups(subset="test", remove=("headers", "footers", "quotes"))
-    train_filename = create_data_file(newsgroups_train, "train.csv", 1000)
-    test_filename = create_data_file(newsgroups_test, "test.csv", 100)
-    model_directory = "model"
+    train_filename = create_data_file(newsgroups_train, os.path.join(args.directory, "train.csv"), 1000)
+    test_filename = create_data_file(newsgroups_test, os.path.join(args.directory, "test.csv"), 100)
+    model_directory = os.path.join(args.directory, "model")
     print("Train a model.\n")
     cmd = "train-nbow %s --model-directory %s --epochs 2\n" % (train_filename, model_directory)
     print("mycroft " + cmd)
     default_main(cmd.split())
-    default_main("\nEvaluate it on the test data.\n")
+    print("\nEvaluate it on the test data.\n")
     cmd = "evaluate %s %s\n" % (model_directory, test_filename)
     print("mycroft " + cmd)
     default_main(cmd.split())
