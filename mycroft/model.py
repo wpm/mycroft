@@ -197,6 +197,7 @@ class TextEmbeddingClassifier:
 
 class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
     VOCABULARY_SIZE = 20000
+    TRAIN_EMBEDDINGS = False
     RNN_UNITS = 64
     RNN_TYPE = "gru"
     BIDIRECTIONAL = False
@@ -208,6 +209,7 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
                             "metavar": "LENGTH"},
         "vocabulary_size": {"help": "number of words in the vocabulary (default %d)" % VOCABULARY_SIZE,
                             "metavar": "SIZE"},
+        "train_embeddings": {"help": "train word embeddings? (default %s)" % TRAIN_EMBEDDINGS},
         "rnn_type": {"choices": ["gru", "lstm"], "help": "RNN type (default %s)" % RNN_TYPE},
         "rnn_units": {"help": "RNN units (default %d)" % RNN_UNITS, "metavar": "UNITS"},
         "bidirectional": {"help": "bidirectional RNN? (default %s)" % BIDIRECTIONAL},
@@ -216,8 +218,9 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
     }
 
     def __init__(self, training,
-                 sequence_length=None, vocabulary_size=VOCABULARY_SIZE, language_model=LANGUAGE_MODEL,
-                 rnn_type=RNN_TYPE, rnn_units=RNN_UNITS, bidirectional=BIDIRECTIONAL, dropout=DROPOUT):
+                 sequence_length=None, vocabulary_size=VOCABULARY_SIZE, train_embeddings=TRAIN_EMBEDDINGS,
+                 language_model=LANGUAGE_MODEL, rnn_type=RNN_TYPE, rnn_units=RNN_UNITS, bidirectional=BIDIRECTIONAL,
+                 dropout=DROPOUT):
         from keras.models import Sequential
         from keras.layers import Bidirectional, Dense, Dropout, GRU, LSTM
         from .text import TextSequenceEmbedder
@@ -228,7 +231,8 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
 
         embedder = TextSequenceEmbedder(vocabulary_size, sequence_length, language_model)
         model = Sequential()
-        model.add(embedder.embedding_layer_factory()(input_length=sequence_length, mask_zero=True, trainable=False))
+        model.add(embedder.embedding_layer_factory()(input_length=sequence_length, mask_zero=True,
+                                                     trainable=train_embeddings, name="embedding"))
         rnn_class = {"lstm": LSTM, "gru": GRU}[rnn_type]
         if bidirectional:
             rnn = Bidirectional(rnn_class(rnn_units), name="rnn")
