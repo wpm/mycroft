@@ -46,6 +46,7 @@ class TestModel(TestCase):
         self.assertEqual(22, model.embeddings_per_text)
         self.assertEqual(300, model.embedding_size)
         self.assertEqual(64, model.rnn_units)
+        self.assertEqual(False, model.bidirectional)
         self.embedding_model_train_predict_evaluate(model)
 
     def test_bag_of_words_with_validation_data(self):

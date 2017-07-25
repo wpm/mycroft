@@ -185,8 +185,13 @@ class TextEmbeddingClassifier:
         spec = inspect.getfullargspec(cls.__init__)
         # Build command line arguments out of keyword arguments to the constructor and their defaults.
         for name, default in zip(spec.args[-len(spec.defaults):], spec.defaults):
-            parser.add_argument("--" + name.replace("_", "-"), type=custom_type(name, default), default=default,
-                                **additional_options(name))
+            argument_type = custom_type(name, default)
+            if not argument_type == bool:
+                parser.add_argument("--" + name.replace("_", "-"), type=argument_type, default=default,
+                                    **additional_options(name))
+            else:
+                action = ["store_true", "store_false"][int(default)]
+                parser.add_argument("--" + name.replace("_", "-"), action=action, **additional_options(name))
         return parser
 
 
@@ -194,6 +199,7 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
     VOCABULARY_SIZE = 20000
     RNN_UNITS = 64
     RNN_TYPE = "gru"
+    BIDIRECTIONAL = False
     DROPOUT = 0.5
     LANGUAGE_MODEL = "en"
 
@@ -204,13 +210,14 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
                             "metavar": "SIZE"},
         "rnn_type": {"choices": ["gru", "lstm"], "help": "RNN type (default %s)" % RNN_TYPE},
         "rnn_units": {"help": "RNN units (default %d)" % RNN_UNITS, "metavar": "UNITS"},
+        "bidirectional": {"help": "bidirectional RNN? (default %s)" % BIDIRECTIONAL},
         "dropout": {"help": "dropout rate (default %0.2f)" % DROPOUT},
         "language_model": {"help": "The spaCy language model to use (default '%s')" % LANGUAGE_MODEL, "metavar": "NAME"}
     }
 
     def __init__(self, training,
                  sequence_length=None, vocabulary_size=VOCABULARY_SIZE, language_model=LANGUAGE_MODEL,
-                 rnn_type=RNN_TYPE, rnn_units=RNN_UNITS, dropout=DROPOUT):
+                 rnn_type=RNN_TYPE, rnn_units=RNN_UNITS, bidirectional=BIDIRECTIONAL, dropout=DROPOUT):
         from keras.models import Sequential
         from keras.layers import Bidirectional, Dense, Dropout, GRU, LSTM
         from .text import TextSequenceEmbedder
@@ -222,20 +229,39 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
         embedder = TextSequenceEmbedder(vocabulary_size, sequence_length, language_model)
         model = Sequential()
         model.add(embedder.embedding_layer_factory()(input_length=sequence_length, mask_zero=True, trainable=False))
-        rnn = {"lstm": LSTM, "gru": GRU}[rnn_type]
-        model.add(Bidirectional(rnn(rnn_units), name="rnn"))
+        rnn_class = {"lstm": LSTM, "gru": GRU}[rnn_type]
+        if bidirectional:
+            rnn = Bidirectional(rnn_class(rnn_units), name="rnn")
+        else:
+            rnn = rnn_class(rnn_units, name="rnn")
+        model.add(rnn)
         model.add(Dense(len(label_names), activation="softmax", name="softmax"))
         model.add(Dropout(dropout, name="dropout"))
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
         super().__init__(model, embedder, label_names)
 
     def __repr__(self):
-        return "Neural text sequence classifier: %d labels, %d RNN units, dropout rate %0.2f\n%s" % (
-            self.num_labels, self.rnn_units, self.dropout, self.embedder)
+        if self.bidirectional:
+            bidi = " bidirectional,"
+        else:
+            bidi = ""
+        return "Neural text sequence classifier: %d labels, %d RNN units,%s dropout rate %0.2f\n%s" % (
+            self.num_labels, self.rnn_units, bidi, self.dropout, self.embedder)
 
     @property
     def rnn_units(self):
-        return self.model.get_layer("rnn").layer.units
+        from keras.layers import Bidirectional
+
+        rnn = self.model.get_layer("rnn")
+        if isinstance(rnn, Bidirectional):
+            rnn = rnn.layer
+        return rnn.units
+
+    @property
+    def bidirectional(self):
+        from keras.layers import Bidirectional
+
+        return isinstance(self.model.get_layer("rnn"), Bidirectional)
 
     @property
     def embeddings_per_text(self):
