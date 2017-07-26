@@ -240,8 +240,8 @@ class RNNClassifier(TextEmbeddingClassifier):
         else:
             rnn = rnn_class(rnn_units, name="rnn")
         model.add(rnn)
-        model.add(Dense(len(label_names), activation="softmax", name="softmax"))
         model.add(Dropout(dropout, name="dropout"))
+        model.add(Dense(len(label_names), activation="softmax", name="softmax"))
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
         super().__init__(model, embedder, label_names)
 
@@ -354,14 +354,8 @@ class BagOfWordsClassifier(TextEmbeddingClassifier):
         embedder = BagOfWordsEmbedder(language_model)
         model = Sequential()
         model.add(Dense(len(label_names), input_shape=(embedder.embedding_size,), activation="softmax", name="softmax"))
-        model.add(Dropout(dropout, name="dropout"))
         model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
         super().__init__(model, embedder, label_names)
 
     def __repr__(self):
-        return "Neural bag of words classifier: %d labels, dropout rate %0.2f\n%s" % (
-            self.num_labels, self.dropout, self.embedder)
-
-    @property
-    def dropout(self):
-        return self.model.get_layer("dropout").rate
+        return "Neural bag of words classifier: %d labels\n%s" % (self.num_labels, self.embedder)

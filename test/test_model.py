@@ -34,7 +34,6 @@ class TestModel(TestCase):
     def test_bag_of_words(self):
         model = BagOfWordsClassifier((self.texts, self.labels, self.label_names))
         self.assertEqual(2, model.num_labels)
-        self.assertEqual(0.5, model.dropout)
         self.embedding_model_train_predict_evaluate(model)
         self.embedding_model_train_without_validation(model)
 
