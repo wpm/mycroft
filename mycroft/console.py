@@ -196,6 +196,24 @@ def evaluate_command(args):
 
 
 def preprocess_labeled_data(data_filename, limit, omit_labels, text_name, label_name, label_names=None):
+    """
+    Get text and label information from a CSV file.
+
+    :param data_filename: the name of the CSV file
+    :type data_filename: str
+    :param limit: use only this many lines, or if None use the whole file
+    :type limit: int or None
+    :param omit_labels: omit lines that have one of these as a label
+    :type omit_labels: list of str
+    :param text_name: the name of the column containing the text
+    :type text_name: str
+    :param label_name: the name of the column containing the labels
+    :type label_name: str
+    :param label_names: the set of label names, if None determine this from the data file
+    :type label_names: list of str or None
+    :return: texts, labels, the set of labels
+    :rtype: (pandas.Series, numpy.array, list of str)
+    """
     data = read_data_file(data_filename, limit)
     if omit_labels:
         data = data[~data[label_name].isin(omit_labels)]

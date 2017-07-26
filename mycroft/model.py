@@ -198,6 +198,11 @@ class TextEmbeddingClassifier:
 
 
 class RNNClassifier(TextEmbeddingClassifier):
+    """
+    This model uses GloVe vectors to embed the text into matrices of size sequence length × 300, clipping or padding
+    the first dimension for each individual text as needed. A recurrent neural network (either a GRU or an LSTM)
+    converts these embeddings to a single vector which a softmax layer then uses to make a label prediction.
+    """
     VOCABULARY_SIZE = 20000
     TRAIN_EMBEDDINGS = False
     RNN_UNITS = 64
@@ -274,6 +279,11 @@ class RNNClassifier(TextEmbeddingClassifier):
 
 
 class ConvolutionNetClassifier(TextEmbeddingClassifier):
+    """
+    This model uses GloVe vectors to embed the text into matrices of size sequence length × 300, clipping or padding
+    the first dimension for each individual text as needed. A 1-dimensional convolutional/max-pooling converts these
+    embeddings to a single vector which a softmax layer then uses to make a label prediction.
+    """
     VOCABULARY_SIZE = 20000
     DROPOUT = 0.5
     FILTERS = 100
@@ -337,6 +347,9 @@ class ConvolutionNetClassifier(TextEmbeddingClassifier):
 
 
 class BagOfWordsClassifier(TextEmbeddingClassifier):
+    """
+    A softmax layer uses the average of the GloVe token embeddings to make a label prediction.
+    """
     DROPOUT = 0.5
     LANGUAGE_MODEL = "en"
 
