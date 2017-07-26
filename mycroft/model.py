@@ -308,7 +308,7 @@ class ConvolutionNetClassifier(TextEmbeddingClassifier):
         model.add(embedder.embedding_layer_factory()(input_length=sequence_length, trainable=False, name="embedding"))
         model.add(Conv1D(filters, kernel_size, padding="valid", activation="relu", strides=1, name="convolution"))
         model.add(MaxPooling1D(pool_size=pool_factor, name="pooling"))
-        model.add(Flatten())
+        model.add(Flatten(name="flatten"))
         model.add(Dropout(dropout, name="dropout"))
         model.add(Dense(len(label_names), activation="softmax", name="softmax"))
         model.compile(loss="sparse_categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
