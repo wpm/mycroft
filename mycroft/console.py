@@ -14,20 +14,7 @@ from mycroft import __version__
 from .model import BagOfWordsEmbeddingClassifier, TextSequenceEmbeddingClassifier
 
 
-def default_main(args=None):
-    model_specifications = [
-        (TextSequenceEmbeddingClassifier, "train-nseq", textwrap.dedent("""
-        Train a neural text sequence model.
-        This applies a recursive neural network over a sequence of word embeddings to make a softmax prediction.""")),
-        (BagOfWordsEmbeddingClassifier, "train-nbow", textwrap.dedent("""
-        Train a neural bag of words model.
-        This uses the mean of the word embeddings in a document to make a softmax prediction."""))
-    ]
-    # noinspection PyTypeChecker
-    main(model_specifications, args)
-
-
-def main(model_specifications, args=None):
+def main(model_specifications, description=None, args=None):
     """
     Create and run a command line application that allows you to train and use the specified models. Each model is
     specified by a 3-tuple of model class, the name of its training subcommand, and text for the help description.
@@ -36,25 +23,27 @@ def main(model_specifications, args=None):
 
     :param model_specifications: descriptions of models to make available via the command line
     :type model_specifications: (mycroft.mode.TextEmbeddingClassifier, str, str)
+    :param description: top level program description in the help message
+    :type description: str
     :param args: command line arguments, if None, get them from sys.argv
     :type args: list of str or None
     """
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
-                                     description=textwrap.dedent("""
-    Mycroft classifies text to categorical labels.
-                                         
-    The training data is a comma- or tab-delimited file with column of text and a column of labels.
-    The test data is in the same format without the labels."""))
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=description)
     parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.set_defaults(func=lambda _: parser.print_usage())
 
     subparsers = parser.add_subparsers(title="Commands")
 
     # Training subcommands
-    for model_class, subcommand, description in model_specifications:
-        neural_sequence_parser = subparsers.add_parser(subcommand, parents=[training_argument_groups(model_class)],
-                                                       description=description)
-        neural_sequence_parser.set_defaults(func=partial(train_command, parser, model_class))
+    train_parser = subparsers.add_parser("train", description="Train a model")
+    model_parsers = train_parser.add_subparsers(title="Models")
+    for model_class, model_command_name, description in model_specifications:
+        model_parser = model_parsers.add_parser(model_command_name, parents=[training_argument_groups()],
+                                                description=description)
+        model_argument_group = \
+            model_parser.add_argument_group("model", description="Arguments for specifying the model configuration:")
+        model_class.command_line_arguments(model_argument_group)
+        model_parser.set_defaults(func=partial(train_command, parser, model_class))
 
     # Predict subcommand
     predict_parser = subparsers.add_parser("predict", parents=[test_argument_groups("predict")],
@@ -79,11 +68,31 @@ def main(model_specifications, args=None):
     parsed_args.func(parsed_args)
 
 
-def training_argument_groups(model_class):
-    arguments = argparse.ArgumentParser(add_help=False)
-    model_class.command_line_arguments(
-        arguments.add_argument_group("model", description="Arguments for specifying the model configuration:"))
+def default_main(args=None):
+    """
+    Entry point for the "mycroft" command line application.
 
+    :param args: command line arguments, if None, get them from sys.argv
+    :type args: list of str or None
+    """
+    model_specifications = [
+        (TextSequenceEmbeddingClassifier, "nseq", textwrap.dedent("""
+        Train a neural text sequence model.
+        This applies a recursive neural network over a sequence of word embeddings to make a softmax prediction.""")),
+        (BagOfWordsEmbeddingClassifier, "nbow", textwrap.dedent("""
+        Train a neural bag of words model.
+        This uses the mean of the word embeddings in a document to make a softmax prediction."""))
+    ]
+    # noinspection PyTypeChecker
+    main(model_specifications, description=textwrap.dedent("""
+    Mycroft classifies text to categorical labels.
+
+    The training data is a comma- or tab-delimited file with column of text and a column of labels.
+    The test data is in the same format without the labels."""), args=args)
+
+
+def training_argument_groups():
+    arguments = argparse.ArgumentParser(add_help=False)
     data_group = arguments.add_argument_group("data",
                                               description="Arguments for specifying the training data:")
     data_group.add_argument("training_data", metavar="TRAINING-FILE", help="training data file")
@@ -211,7 +220,7 @@ def demo_command(args):
     test_filename = create_data_file(newsgroups_test, os.path.join(args.directory, "test.csv"), 100)
     model_directory = os.path.join(args.directory, "model")
     print("Train a model.\n")
-    cmd = "train-nbow %s --model-directory %s --epochs 2\n" % (train_filename, model_directory)
+    cmd = "train nbow %s --model-directory %s --epochs 2\n" % (train_filename, model_directory)
     print("mycroft " + cmd)
     default_main(cmd.split())
     print("\nEvaluate it on the test data.\n")

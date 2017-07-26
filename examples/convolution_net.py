@@ -83,4 +83,5 @@ class ConvolutionNetClassifier(mycroft.model.TextEmbeddingClassifier):
 
 if __name__ == "__main__":
     # The main function incorporates the custom model into Mycroft's command line framework.
-    mycroft.console.main([(ConvolutionNetClassifier, "train", "Train a convolution network classifier")])
+    mycroft.console.main([(ConvolutionNetClassifier, "convnet", "Train a convolution network classifier")],
+                         description="Convolution Network")

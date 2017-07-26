@@ -1,5 +1,4 @@
 """Machine learning components"""
-import argparse
 import inspect
 import json
 import os
@@ -170,7 +169,7 @@ class TextEmbeddingClassifier:
         return cls(tuple(training), **filtered_args)
 
     @classmethod
-    def command_line_arguments(cls, parser=argparse.ArgumentParser(add_help=False)):
+    def command_line_arguments(cls, parser):
         def additional_options(name):
             options = cls.CUSTOM_COMMAND_LINE_OPTIONS.get(name, {})
             # The type= argument is handled by custom_type.

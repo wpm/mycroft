@@ -27,7 +27,7 @@ class TestConsole(TestCase):
 
     def test_nbow(self):
         self.run_command(
-            "train-nbow %s --model-directory %s --logging none" % (self.data_filename, self.model_directory))
+            "train nbow %s --model-directory %s --logging none" % (self.data_filename, self.model_directory))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.hd5")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "classifier.pk")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "description.txt")))
@@ -37,7 +37,7 @@ class TestConsole(TestCase):
 
     def test_nseq(self):
         self.run_command(
-            "train-nseq %s --model-directory %s --logging none" % (self.data_filename, self.model_directory))
+            "train nseq %s --model-directory %s --logging none" % (self.data_filename, self.model_directory))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.hd5")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "classifier.pk")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "description.txt")))
