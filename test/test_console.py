@@ -25,19 +25,9 @@ class TestConsole(TestCase):
     def tearDown(self):
         shutil.rmtree(self.directory)
 
-    def test_nbow(self):
+    def test_bow(self):
         self.run_command(
-            "train nbow %s --model-directory %s --logging none" % (self.data_filename, self.model_directory))
-        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.hd5")))
-        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "classifier.pk")))
-        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "description.txt")))
-        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "history.json")))
-        self.run_command("predict %s %s" % (self.model_directory, self.data_filename))
-        self.run_command("evaluate %s %s" % (self.model_directory, self.data_filename))
-
-    def test_nseq(self):
-        self.run_command(
-            "train nseq %s --model-directory %s --logging none" % (self.data_filename, self.model_directory))
+            "train bow %s --model-directory %s --logging none" % (self.data_filename, self.model_directory))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.hd5")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "classifier.pk")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "description.txt")))

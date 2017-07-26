@@ -11,7 +11,7 @@ import pandas
 from sklearn.datasets import fetch_20newsgroups
 
 from mycroft import __version__
-from .model import BagOfWordsEmbeddingClassifier, TextSequenceEmbeddingClassifier
+from .model import BagOfWordsClassifier, RNNClassifier, ConvolutionNetClassifier
 
 
 def main(model_specifications, description=None, args=None):
@@ -76,10 +76,14 @@ def default_main(args=None):
     :type args: list of str or None
     """
     model_specifications = [
-        (TextSequenceEmbeddingClassifier, "nseq", textwrap.dedent("""
-        Train a neural text sequence model.
+        (RNNClassifier, "rnn", textwrap.dedent("""
+        Train a recursive neural network over a text sequence.
         This applies a recursive neural network over a sequence of word embeddings to make a softmax prediction.""")),
-        (BagOfWordsEmbeddingClassifier, "nbow", textwrap.dedent("""
+        (ConvolutionNetClassifier, "conv", textwrap.dedent("""
+        Train a convolutional neural network over a text sequence.
+        This applies a convolutional neural network over a sequence of word embeddings to make a softmax 
+        prediction.""")),
+        (BagOfWordsClassifier, "bow", textwrap.dedent("""
         Train a neural bag of words model.
         This uses the mean of the word embeddings in a document to make a softmax prediction."""))
     ]
@@ -220,7 +224,7 @@ def demo_command(args):
     test_filename = create_data_file(newsgroups_test, os.path.join(args.directory, "test.csv"), 100)
     model_directory = os.path.join(args.directory, "model")
     print("Train a model.\n")
-    cmd = "train nbow %s --model-directory %s --epochs 2\n" % (train_filename, model_directory)
+    cmd = "train bow %s --model-directory %s --epochs 2\n" % (train_filename, model_directory)
     print("mycroft " + cmd)
     default_main(cmd.split())
     print("\nEvaluate it on the test data.\n")

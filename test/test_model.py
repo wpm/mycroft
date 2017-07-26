@@ -8,7 +8,7 @@ from unittest import TestCase
 import numpy
 from keras.callbacks import History
 
-from mycroft.model import BagOfWordsEmbeddingClassifier, TextSequenceEmbeddingClassifier, load_embedding_model
+from mycroft.model import BagOfWordsClassifier, RNNClassifier, load_embedding_model, ConvolutionNetClassifier
 from test import to_lines
 
 
@@ -32,25 +32,31 @@ class TestModel(TestCase):
         shutil.rmtree(self.model_directory)
 
     def test_bag_of_words(self):
-        model = BagOfWordsEmbeddingClassifier((self.texts, self.labels, self.label_names))
+        model = BagOfWordsClassifier((self.texts, self.labels, self.label_names))
         self.assertEqual(2, model.num_labels)
         self.assertEqual(0.5, model.dropout)
         self.embedding_model_train_predict_evaluate(model)
         self.embedding_model_train_without_validation(model)
 
-    def test_text_sequence(self):
-        model = TextSequenceEmbeddingClassifier((self.texts, self.labels, self.label_names))
+    def test_rnn(self):
+        model = RNNClassifier((self.texts, self.labels, self.label_names))
         self.assertEqual(2, model.num_labels)
         self.assertEqual(0.5, model.dropout)
-        # The longest text in the training data is 22 tokens.
-        self.assertEqual(22, model.embeddings_per_text)
-        self.assertEqual(300, model.embedding_size)
         self.assertEqual(64, model.rnn_units)
         self.assertEqual(False, model.bidirectional)
         self.embedding_model_train_predict_evaluate(model)
 
+    def test_convolution(self):
+        model = ConvolutionNetClassifier((self.texts, self.labels, self.label_names))
+        self.assertEqual(2, model.num_labels)
+        self.assertEqual(100, model.filters)
+        self.assertEqual(3, model.kernel_size)
+        self.assertEqual(4, model.pool_factor)
+        self.assertEqual(0.5, model.dropout)
+        self.embedding_model_train_predict_evaluate(model)
+
     def test_bag_of_words_with_validation_data(self):
-        model = BagOfWordsEmbeddingClassifier((self.texts, self.labels, self.label_names))
+        model = BagOfWordsClassifier((self.texts, self.labels, self.label_names))
         history = model.train(self.texts, self.labels, epochs=2, batch_size=10,
                               validation_data=(self.texts, self.labels),
                               model_directory=self.model_directory, verbose=0)

@@ -6,7 +6,7 @@ import pickle
 import sys
 from io import StringIO
 
-from .text import longest_text
+from .text import TextSequenceEmbedder, longest_text
 
 
 def load_embedding_model(model_directory):
@@ -185,16 +185,19 @@ class TextEmbeddingClassifier:
         # Build command line arguments out of keyword arguments to the constructor and their defaults.
         for name, default in zip(spec.args[-len(spec.defaults):], spec.defaults):
             argument_type = custom_type(name, default)
-            if not argument_type == bool:
-                parser.add_argument("--" + name.replace("_", "-"), type=argument_type, default=default,
-                                    **additional_options(name))
-            else:
+            if argument_type == bool:
                 action = ["store_true", "store_false"][int(default)]
                 parser.add_argument("--" + name.replace("_", "-"), action=action, **additional_options(name))
+            elif argument_type == tuple:
+                parser.add_argument("--" + name.replace("_", "-"), nargs="+", type=type(default[0]), default=default,
+                                    **additional_options(name))
+            else:
+                parser.add_argument("--" + name.replace("_", "-"), type=argument_type, default=default,
+                                    **additional_options(name))
         return parser
 
 
-class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
+class RNNClassifier(TextEmbeddingClassifier):
     VOCABULARY_SIZE = 20000
     TRAIN_EMBEDDINGS = False
     RNN_UNITS = 64
@@ -222,7 +225,6 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
                  dropout=DROPOUT):
         from keras.models import Sequential
         from keras.layers import Bidirectional, Dense, Dropout, GRU, LSTM
-        from .text import TextSequenceEmbedder
 
         label_names = training[2]
         if sequence_length is None:
@@ -267,19 +269,74 @@ class TextSequenceEmbeddingClassifier(TextEmbeddingClassifier):
         return isinstance(self.model.get_layer("rnn"), Bidirectional)
 
     @property
-    def embeddings_per_text(self):
-        return self.model.get_layer("rnn").input_shape[1]
+    def dropout(self):
+        return self.model.get_layer("dropout").rate
+
+
+class ConvolutionNetClassifier(TextEmbeddingClassifier):
+    VOCABULARY_SIZE = 20000
+    DROPOUT = 0.5
+    FILTERS = 100
+    KERNEL_SIZE = 3
+    POOL_FACTOR = 4
+    LANGUAGE_MODEL = "en"
+
+    CUSTOM_COMMAND_LINE_OPTIONS = {
+        "sequence_length": {"help": "Maximum number of tokens per text (default use longest in the data)", "type": int,
+                            "metavar": "LENGTH"},
+        "vocabulary_size": {"help": "number of words in the vocabulary (default %d)" % VOCABULARY_SIZE,
+                            "metavar": "SIZE"},
+        "dropout": {"help": "Dropout rate (default %0.2f)" % DROPOUT},
+        "filters": {"help": "Number of filters (default %d)" % FILTERS, "metavar": "FILTERS"},
+        "kernel_size": {"help": "Size of kernel (default %d)" % KERNEL_SIZE, "metavar": "SIZE"},
+        "pool_factor": {"help": "Pooling downscale factor (default %d)" % POOL_FACTOR, "metavar": "FACTOR"},
+        "language_model": {"help": "Language model (default %s)" % LANGUAGE_MODEL, "metavar": "MODEL"}
+    }
+
+    def __init__(self, training,
+                 sequence_length=None, vocabulary_size=VOCABULARY_SIZE, dropout=DROPOUT, filters=FILTERS,
+                 kernel_size=KERNEL_SIZE, pool_factor=POOL_FACTOR, language_model=LANGUAGE_MODEL):
+        from keras.layers import Dropout, Conv1D, Flatten, MaxPooling1D, Dense
+        from keras.models import Sequential
+
+        label_names = training[2]
+        if sequence_length is None:
+            sequence_length = longest_text(training[0], language_model)
+        embedder = TextSequenceEmbedder(vocabulary_size, sequence_length, language_model)
+
+        model = Sequential()
+        model.add(embedder.embedding_layer_factory()(input_length=sequence_length, trainable=False, name="embedding"))
+        model.add(Conv1D(filters, kernel_size, padding="valid", activation="relu", strides=1, name="convolution"))
+        model.add(MaxPooling1D(pool_size=pool_factor, name="pooling"))
+        model.add(Flatten())
+        model.add(Dropout(dropout, name="dropout"))
+        model.add(Dense(len(label_names), activation="softmax", name="softmax"))
+        model.compile(loss="sparse_categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+        super().__init__(model, embedder, label_names)
+
+    def __repr__(self):
+        return "Convolutional text sequence classifier: " + \
+               "%d labels, %d filters, kernel size %d, pool factor %d, dropout rate %0.2f\n%s" % (
+                   self.num_labels, self.filters, self.kernel_size, self.pool_factor, self.dropout, self.embedder)
 
     @property
-    def embedding_size(self):
-        return self.model.get_layer("rnn").input_shape[2]
+    def filters(self):
+        return self.model.get_layer("convolution").filters
+
+    @property
+    def kernel_size(self):
+        return self.model.get_layer("convolution").kernel_size[0]
+
+    @property
+    def pool_factor(self):
+        return self.model.get_layer("pooling").pool_size[0]
 
     @property
     def dropout(self):
         return self.model.get_layer("dropout").rate
 
 
-class BagOfWordsEmbeddingClassifier(TextEmbeddingClassifier):
+class BagOfWordsClassifier(TextEmbeddingClassifier):
     DROPOUT = 0.5
     LANGUAGE_MODEL = "en"
 

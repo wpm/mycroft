@@ -50,7 +50,7 @@ Run `mycroft demo` to see a quick example of the command line syntax and data fo
 
 ## Programmatic Interface
 
-You can write your own Keras-based text-embedding classfiers by extending the `mycroft.model.TextEmbeddingClassifier`
+You can write your own Keras-based text-embedding classifiers by extending the `mycroft.model.TextEmbeddingClassifier`
 base class in and using subclasses of `mycroft.text.Embedder` to handle text processing and word embedding.
 
 See `convolution_net.py` in the `examples` for detailed instructions on how to do this.
