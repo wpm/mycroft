@@ -77,8 +77,8 @@ def default_main(args=None):
     """
     model_specifications = [
         (RNNClassifier, "rnn", textwrap.dedent("""
-        Train a recursive neural network over a text sequence.
-        This applies a recursive neural network over a sequence of word embeddings to make a softmax prediction.""")),
+        Train a recurrent neural network over a text sequence.
+        This applies a recurrent neural network over a sequence of word embeddings to make a softmax prediction.""")),
         (ConvolutionNetClassifier, "conv", textwrap.dedent("""
         Train a convolutional neural network over a text sequence.
         This applies a convolutional neural network over a sequence of word embeddings to make a softmax 

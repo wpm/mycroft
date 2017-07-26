@@ -345,9 +345,9 @@ class BagOfWordsClassifier(TextEmbeddingClassifier):
         "language_model": {"help": "the spaCy language model to use (default '%s')" % LANGUAGE_MODEL, "metavar": "NAME"}
     }
 
-    def __init__(self, training, dropout=DROPOUT, language_model=LANGUAGE_MODEL):
+    def __init__(self, training, language_model=LANGUAGE_MODEL):
         from keras.models import Sequential
-        from keras.layers import Dense, Dropout
+        from keras.layers import Dense
         from .text import BagOfWordsEmbedder
 
         label_names = training[2]

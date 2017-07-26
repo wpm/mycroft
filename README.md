@@ -33,17 +33,23 @@ The test data is in the same format without the labels.
 
 Mycroft implements two kinds of word-embedding models.
 
-* __Neural bag of words__
+* __Recurrent neural network__
 
-  300-dimensional [GloVe](https://nlp.stanford.edu/projects/glove/) vectors are used to embed the tokens in the text.
+  300-dimensional [GloVe](https://nlp.stanford.edu/projects/glove/)vectors are used to embed the text into matrices of
+  size _sequence length × 300_, clipping or padding the first dimension for each individual text as needed.
+  A recurrent neural network (either a GRU or an LSTM) converts these embeddings to a single vector which a softmax
+  layer then uses to make a label prediction.
+
+* __Convolutional network__
+
+  This works the same as the recurrent neural network, except that it summarizes the sentence embedding matrices with
+  a 1-dimensional convolutional network instead of a recurrent neural network. 
+
+* __Bag of words__
+
+  The same GloVe vectors are used to embed the tokens in the text.
   A softmax layer uses the average of the token embeddings to make a label prediction.
 
-* __Neural text sequence__
-
-  The same GloVe vectors are used to embed the text into matrices of size _sequence length × 300_, clipping or padding
-  the first dimension for each individual text as needed.
-  A recursive neural network (either a GRU or an LSTM) converts these embeddings to a single vector which a softmax
-  layer then uses to make a label prediction.
 
 Run `mycroft demo` to see a quick example of the command line syntax and data formats.
 
