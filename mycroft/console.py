@@ -14,7 +14,7 @@ from mycroft import __version__
 from .model import BagOfWordsClassifier, RNNClassifier, ConvolutionNetClassifier
 
 
-def main(model_specifications, description=None, args=None):
+def main(model_specifications, description=None, demo=False, args=None):
     """
     Create and run a command line application that allows you to train and use the specified models. Each model is
     specified by a 3-tuple of model class, the name of its training subcommand, and text for the help description.
@@ -25,6 +25,8 @@ def main(model_specifications, description=None, args=None):
     :type model_specifications: (mycroft.mode.TextEmbeddingClassifier, str, str)
     :param description: top level program description in the help message
     :type description: str
+    :param demo: add a command to run a demo
+    :type demo: bool
     :param args: command line arguments, if None, get them from sys.argv
     :type args: list of str or None
     """
@@ -60,9 +62,10 @@ def main(model_specifications, description=None, args=None):
     evaluate_parser.set_defaults(func=evaluate_command)
 
     # Demo subcommand
-    demo_parser = subparsers.add_parser("demo", description="Run a demo_command on 20 newsgroups data.")
-    demo_parser.add_argument("--directory", default=".", help="directory in which to run demo (default current)")
-    demo_parser.set_defaults(func=demo_command)
+    if demo:
+        demo_parser = subparsers.add_parser("demo", description="Run a demo_command on 20 newsgroups data.")
+        demo_parser.add_argument("--directory", default=".", help="directory in which to run demo (default current)")
+        demo_parser.set_defaults(func=demo_command)
 
     parsed_args = parser.parse_args(args=args)
     parsed_args.func(parsed_args)
@@ -88,7 +91,7 @@ def default_main(args=None):
         This uses the mean of the word embeddings in a document to make a softmax prediction."""))
     ]
     # noinspection PyTypeChecker
-    main(model_specifications, description=textwrap.dedent("""
+    main(model_specifications, demo=True, description=textwrap.dedent("""
     Mycroft classifies text to categorical labels.
 
     The training data is a comma- or tab-delimited file with column of text and a column of labels.
@@ -250,3 +253,4 @@ def demo_command(args):
     cmd = "evaluate %s %s\n" % (model_directory, test_filename)
     print("mycroft " + cmd)
     default_main(cmd.split())
+    print("\n(Note that there is not enough training data here to generate accurate predictions.)")
