@@ -64,21 +64,24 @@ class ConvolutionNetClassifier(mycroft.model.TextEmbeddingClassifier):
         # This passes a Keras model, a mycroft.text.Embedder, and the label names back to the parent constructor.
         super().__init__(model, embedder, label_names)
 
-    # Derived classes may optionally supply a CUSTOM_COMMAND_LINE_OPTIONS dictionary, which specifies additional
-    # keyword arguments to provide to the argparse.addArgument command. Here they are used to provide additional
-    # formatting to the help text.
-    CUSTOM_COMMAND_LINE_OPTIONS = {
-        "sequence_length": {"help": "Maximum number of tokens per text (default use longest in the data)", "type": int,
-                            "metavar": "LENGTH"},
-        "vocabulary_size": {"help": "number of words in the vocabulary (default %d)" % VOCABULARY_SIZE,
-                            "metavar": "SIZE"},
-        "dropout": {"help": "Dropout rate (default %0.2f)" % DROPOUT},
-        "filters": {"help": "Number of filters (default %d)" % FILTERS},
-        "kernel_size": {"help": "Size of kernel  (default %d)" % KERNEL_SIZE, "metavar": "SIZE"},
-        "pool_size": {"help": "Size of pooling layer (default %d)" % POOL_SIZE, "metavar": "SIZE"},
-        "lstm_output_size": {"help": "LSTM output size (default %d)" % LSTM_OUTPUT_SIZE, "metavar": "SIZE"},
-        "language_model": {"help": "Language model (default %s)" % LANGUAGE_MODEL, "metavar": "MODEL"}
-    }
+    # Derived classes may optionally supply a custom_command_line_options class method that returns a dictionary that
+    # specifies additional keyword arguments to provide to the argparse.addArgument command. Here they are used to
+    # provide additional formatting to the help text.
+    @classmethod
+    def custom_command_line_options(cls):
+        return {
+            "sequence_length": {"help": "Maximum number of tokens per text (default use longest in the data)",
+                                "type": int,
+                                "metavar": "LENGTH"},
+            "vocabulary_size": {"help": "number of words in the vocabulary (default %d)" % cls.VOCABULARY_SIZE,
+                                "metavar": "SIZE"},
+            "dropout": {"help": "Dropout rate (default %0.2f)" % cls.DROPOUT},
+            "filters": {"help": "Number of filters (default %d)" % cls.FILTERS},
+            "kernel_size": {"help": "Size of kernel  (default %d)" % cls.KERNEL_SIZE, "metavar": "SIZE"},
+            "pool_size": {"help": "Size of pooling layer (default %d)" % cls.POOL_SIZE, "metavar": "SIZE"},
+            "lstm_output_size": {"help": "LSTM output size (default %d)" % cls.LSTM_OUTPUT_SIZE, "metavar": "SIZE"},
+            "language_model": {"help": "Language model (default %s)" % cls.LANGUAGE_MODEL, "metavar": "MODEL"}
+        }
 
 
 if __name__ == "__main__":

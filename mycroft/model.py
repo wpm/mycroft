@@ -4,6 +4,7 @@ import json
 import os
 import pickle
 import sys
+import textwrap
 from io import StringIO
 
 from .text import TextSequenceEmbedder, longest_text
@@ -33,10 +34,10 @@ class TextEmbeddingClassifier:
     Derived classes must define a constructor that takes a training data argument followed by model hyper-parameters.
     The training data argument is a 3-ple (texts, labels, label names). The label names must be passed up to this
     constructor. The texts and labels are present in case they are needed to determine hyper-parameters. (See
-    TextSequenceEmbeddingClassifier for an example of this.
+    the constructors of ConvolutionNetClassifier and RNNClassifier for examples of this.
 
     When one of these classes is passed a part of the model_specification argument to mycroft.console.main, Mycroft will
-    create command line arguments for all the hyper-parameter arguments in the construction. Positional constructor
+    create command line arguments for all the hyper-parameter arguments in its constructor. Positional constructor
     arguments will be positional command line arguments, and keyword constructor arguments will be command line options.
     Derived classes may optionally supply a CUSTOM_COMMAND_LINE_OPTIONS dictionary, which specifies additional keyword
     arguments to provide to the argparse.addArgument command.
@@ -46,8 +47,6 @@ class TextEmbeddingClassifier:
     classifier_name = "classifier.pk"
     description_name = "description.txt"
     history_name = "history.json"
-
-    CUSTOM_COMMAND_LINE_OPTIONS = {}
 
     def __init__(self, model, embedder, label_names):
         """
@@ -162,6 +161,10 @@ class TextEmbeddingClassifier:
         return len(self.label_names)
 
     @classmethod
+    def custom_command_line_options(cls):
+        return {}
+
+    @classmethod
     def create_from_command_line_arguments(cls, training, command_line_arguments):
         args = command_line_arguments.__dict__
         spec = inspect.getfullargspec(cls.__init__)
@@ -170,31 +173,51 @@ class TextEmbeddingClassifier:
 
     @classmethod
     def command_line_arguments(cls, parser):
+        """
+        Build command line options for this model out of the constructor arguments and their defaults and add them to
+        an argument parser.
+
+        This creates a command line option for each keyword argument in the constructor. If the constructor default
+        value is None, the command line option will not have a default and the argument type must be specified in the
+        dictionary returned by custom_command_line_options.
+
+        :param parser: command line parser to add this model's options to
+        :type parser: argparse._ArgumentGroup
+        """
+
+        def get_argument_type(name, default):
+            try:
+                argument_type = cls.custom_command_line_options()[name]["type"]
+            except KeyError:
+                if default is None:
+                    raise ValueError(textwrap.dedent("""
+                    constructor argument %s = None must have its type specified in the custom command line options""")
+                                     % name)
+                argument_type = type(default)
+            return argument_type
+
         def additional_options(name):
-            options = cls.CUSTOM_COMMAND_LINE_OPTIONS.get(name, {})
-            # The type= argument is handled by custom_type.
-            options.pop("type", None)
+            options = cls.custom_command_line_options().get(name, {})
+            options.pop("type", None)  # type is handled by argument_type()
             return options
 
-        def custom_type(name, default):
-            if name in cls.CUSTOM_COMMAND_LINE_OPTIONS:
-                return cls.CUSTOM_COMMAND_LINE_OPTIONS.get("type", type(default))
-            return type(default)
+        def option_string(name):
+            return "--" + name.replace("_", "-")
 
         spec = inspect.getfullargspec(cls.__init__)
-        # Build command line arguments out of keyword arguments to the constructor and their defaults.
         for name, default in zip(spec.args[-len(spec.defaults):], spec.defaults):
-            argument_type = custom_type(name, default)
-            if argument_type == bool:
+            argument_type = get_argument_type(name, default)
+            if default is None:
+                parser.add_argument(option_string(name), type=argument_type, **additional_options(name))
+            elif argument_type == bool:
                 action = ["store_true", "store_false"][int(default)]
-                parser.add_argument("--" + name.replace("_", "-"), action=action, **additional_options(name))
+                parser.add_argument(option_string(name), action=action, **additional_options(name))
             elif argument_type == tuple:
-                parser.add_argument("--" + name.replace("_", "-"), nargs="+", type=type(default[0]), default=default,
+                parser.add_argument(option_string(name), nargs="+", type=type(default[0]), default=default,
                                     **additional_options(name))
             else:
-                parser.add_argument("--" + name.replace("_", "-"), type=argument_type, default=default,
+                parser.add_argument(option_string(name), type=argument_type, default=default,
                                     **additional_options(name))
-        return parser
 
 
 class RNNClassifier(TextEmbeddingClassifier):
@@ -211,18 +234,22 @@ class RNNClassifier(TextEmbeddingClassifier):
     DROPOUT = 0.5
     LANGUAGE_MODEL = "en"
 
-    CUSTOM_COMMAND_LINE_OPTIONS = {
-        "sequence_length": {"help": "Maximum number of tokens per text (default use longest in the data)", "type": int,
-                            "metavar": "LENGTH"},
-        "vocabulary_size": {"help": "number of words in the vocabulary (default %d)" % VOCABULARY_SIZE,
-                            "metavar": "SIZE"},
-        "train_embeddings": {"help": "train word embeddings? (default %s)" % TRAIN_EMBEDDINGS},
-        "rnn_type": {"choices": ["gru", "lstm"], "help": "RNN type (default %s)" % RNN_TYPE},
-        "rnn_units": {"help": "RNN units (default %d)" % RNN_UNITS, "metavar": "UNITS"},
-        "bidirectional": {"help": "bidirectional RNN? (default %s)" % BIDIRECTIONAL},
-        "dropout": {"help": "dropout rate (default %0.2f)" % DROPOUT},
-        "language_model": {"help": "The spaCy language model to use (default '%s')" % LANGUAGE_MODEL, "metavar": "NAME"}
-    }
+    @classmethod
+    def custom_command_line_options(cls):
+        return {
+            "sequence_length": {"help": "Maximum number of tokens per text (default use longest in the data)",
+                                "type": int,
+                                "metavar": "LENGTH"},
+            "vocabulary_size": {"help": "number of words in the vocabulary (default %d)" % cls.VOCABULARY_SIZE,
+                                "metavar": "SIZE"},
+            "train_embeddings": {"help": "train word embeddings? (default %s)" % cls.TRAIN_EMBEDDINGS},
+            "rnn_type": {"choices": ["gru", "lstm"], "help": "RNN type (default %s)" % cls.RNN_TYPE},
+            "rnn_units": {"help": "RNN units (default %d)" % cls.RNN_UNITS, "metavar": "UNITS"},
+            "bidirectional": {"help": "bidirectional RNN? (default %s)" % cls.BIDIRECTIONAL},
+            "dropout": {"help": "dropout rate (default %0.2f)" % cls.DROPOUT},
+            "language_model": {"help": "The spaCy language model to use (default '%s')" % cls.LANGUAGE_MODEL,
+                               "metavar": "NAME"}
+        }
 
     def __init__(self, training,
                  sequence_length=None, vocabulary_size=VOCABULARY_SIZE, train_embeddings=TRAIN_EMBEDDINGS,
@@ -291,17 +318,20 @@ class ConvolutionNetClassifier(TextEmbeddingClassifier):
     POOL_FACTOR = 4
     LANGUAGE_MODEL = "en"
 
-    CUSTOM_COMMAND_LINE_OPTIONS = {
-        "sequence_length": {"help": "Maximum number of tokens per text (default use longest in the data)", "type": int,
-                            "metavar": "LENGTH"},
-        "vocabulary_size": {"help": "number of words in the vocabulary (default %d)" % VOCABULARY_SIZE,
-                            "metavar": "SIZE"},
-        "dropout": {"help": "Dropout rate (default %0.2f)" % DROPOUT},
-        "filters": {"help": "Number of filters (default %d)" % FILTERS, "metavar": "FILTERS"},
-        "kernel_size": {"help": "Size of kernel (default %d)" % KERNEL_SIZE, "metavar": "SIZE"},
-        "pool_factor": {"help": "Pooling downscale factor (default %d)" % POOL_FACTOR, "metavar": "FACTOR"},
-        "language_model": {"help": "Language model (default %s)" % LANGUAGE_MODEL, "metavar": "MODEL"}
-    }
+    @classmethod
+    def custom_command_line_options(cls):
+        return {
+            "sequence_length": {"help": "Maximum number of tokens per text (default use longest in the data)",
+                                "type": int,
+                                "metavar": "LENGTH"},
+            "vocabulary_size": {"help": "number of words in the vocabulary (default %d)" % cls.VOCABULARY_SIZE,
+                                "metavar": "SIZE"},
+            "dropout": {"help": "Dropout rate (default %0.2f)" % cls.DROPOUT},
+            "filters": {"help": "Number of filters (default %d)" % cls.FILTERS, "metavar": "FILTERS"},
+            "kernel_size": {"help": "Size of kernel (default %d)" % cls.KERNEL_SIZE, "metavar": "SIZE"},
+            "pool_factor": {"help": "Pooling downscale factor (default %d)" % cls.POOL_FACTOR, "metavar": "FACTOR"},
+            "language_model": {"help": "Language model (default %s)" % cls.LANGUAGE_MODEL, "metavar": "MODEL"}
+        }
 
     def __init__(self, training,
                  sequence_length=None, vocabulary_size=VOCABULARY_SIZE, dropout=DROPOUT, filters=FILTERS,
@@ -353,10 +383,13 @@ class BagOfWordsClassifier(TextEmbeddingClassifier):
     DROPOUT = 0.5
     LANGUAGE_MODEL = "en"
 
-    CUSTOM_COMMAND_LINE_OPTIONS = {
-        "dropout": {"help": "dropout rate (default %0.2f)" % DROPOUT},
-        "language_model": {"help": "the spaCy language model to use (default '%s')" % LANGUAGE_MODEL, "metavar": "NAME"}
-    }
+    @classmethod
+    def custom_command_line_options(cls):
+        return {
+            "dropout": {"help": "dropout rate (default %0.2f)" % cls.DROPOUT},
+            "language_model": {"help": "the spaCy language model to use (default '%s')" % cls.LANGUAGE_MODEL,
+                               "metavar": "NAME"}
+        }
 
     def __init__(self, training, language_model=LANGUAGE_MODEL):
         from keras.models import Sequential
