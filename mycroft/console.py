@@ -259,7 +259,8 @@ def demo_command(args):
     test_filename = create_data_file(newsgroups_test, os.path.join(args.directory, "test.csv"), 100)
     model_directory = os.path.join(args.directory, "model")
     print("Train a model.\n")
-    cmd = "train bow %s --model-directory %s --epochs 2\n" % (train_filename, model_directory)
+    cmd = "train bow %s --model-directory %s --epochs 5 --logging progress\n" % (
+        train_filename, model_directory)
     print("mycroft " + cmd)
     default_main(cmd.split())
     print("\nEvaluate it on the test data.\n")
