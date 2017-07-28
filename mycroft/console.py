@@ -59,7 +59,7 @@ def main(model_specifications, description=None, demo=False, args=None):
                                             description=textwrap.dedent("""
         Evaluate the model's performance on a labeled data set. 
         The test data is a comma- or tab-delimited file with columns of texts and labels.
-        This returns the classfication accuracy and cross-entropy loss."""))
+        This returns the classification accuracy and cross-entropy loss."""))
     evaluate_parser.set_defaults(func=evaluate_command)
 
     # Demo subcommand
@@ -179,7 +179,7 @@ def train_command(parser, model_class, args):
     best_loss = min(losses)
     best_epoch = losses.index(best_loss)
     s = " - ".join("%s: %0.5f" % (score, values[best_epoch]) for score, values in sorted(history.history.items()))
-    print("Best epoch %d of %d: %s" % (best_epoch + 1, args.epochs, s))
+    print("Best epoch %d of %d: %s" % (best_epoch + 1, len(history.epoch), s))
 
 
 def predict_command(args):
