@@ -174,7 +174,8 @@ def train_command(parser, model_class, args):
                           batch_size=args.batch_size, validation_fraction=args.validation_fraction,
                           validation_data=validation_data, model_directory=args.model_directory,
                           tensor_board_directory=args.tensor_board, verbose=verbose)
-    print(model)
+    if verbose:
+        print(model)
     losses = history.history[history.monitor]
     best_loss = min(losses)
     best_epoch = losses.index(best_loss)
