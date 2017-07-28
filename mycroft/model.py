@@ -108,12 +108,16 @@ class TextEmbeddingClassifier:
         else:
             monitor = "loss"
         callbacks = []
+        if verbose == 0:
+            callback_verbosity = 0
+        else:
+            callback_verbosity = 1
         if tensor_board_directory:
             callbacks.append(TensorBoard(log_dir=tensor_board_directory))
         if early_stop:
-            callbacks.append(EarlyStopping(monitor=monitor, patience=early_stop))
+            callbacks.append(EarlyStopping(monitor=monitor, patience=early_stop, verbose=callback_verbosity))
         if reduce:
-            callbacks.append(ReduceLROnPlateau(monitor=monitor, patience=reduce))
+            callbacks.append(ReduceLROnPlateau(monitor=monitor, patience=reduce, verbose=callback_verbosity))
         if model_directory is not None:
             create_directory(model_directory)
             if doing_validation:
