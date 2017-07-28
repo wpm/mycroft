@@ -42,6 +42,9 @@ class TextEmbeddingClassifier:
     Derived classes may optionally supply a CUSTOM_COMMAND_LINE_OPTIONS dictionary, which specifies additional keyword
     arguments to provide to the argparse.addArgument command.
     """
+    EPOCHS = 100
+    BATCH_SIZE = 32
+
     # Names of files created in the model directory.
     model_name = "model.hd5"
     classifier_name = "classifier.pk"
@@ -79,7 +82,7 @@ class TextEmbeddingClassifier:
         del d["model"]
         return d
 
-    def train(self, texts, labels, epochs=10, early_stop=8, reduce=4, batch_size=32, validation_fraction=None,
+    def train(self, texts, labels, epochs=EPOCHS, early_stop=8, reduce=4, batch_size=32, validation_fraction=None,
               validation_data=None, model_directory=None, tensor_board_directory=None, verbose=1):
         from keras.callbacks import EarlyStopping, ReduceLROnPlateau, TensorBoard
 
@@ -257,7 +260,7 @@ class RNNClassifier(TextEmbeddingClassifier):
             "rnn_units": {"help": "RNN units (default %d)" % cls.RNN_UNITS, "metavar": "UNITS"},
             "bidirectional": {"help": "bidirectional RNN? (default %s)" % cls.BIDIRECTIONAL},
             "dropout": {"help": "dropout rate (default %0.2f)" % cls.DROPOUT},
-            "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.2f)" % cls.LEARNING_RATE},
+            "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.5f)" % cls.LEARNING_RATE},
             "language_model": {"help": "The spaCy language model to use (default '%s')" % cls.LANGUAGE_MODEL,
                                "metavar": "NAME"}
         }
@@ -344,7 +347,7 @@ class ConvolutionNetClassifier(TextEmbeddingClassifier):
             "filters": {"help": "Number of filters (default %d)" % cls.FILTERS, "metavar": "FILTERS"},
             "kernel_size": {"help": "Size of kernel (default %d)" % cls.KERNEL_SIZE, "metavar": "SIZE"},
             "pool_factor": {"help": "Pooling downscale factor (default %d)" % cls.POOL_FACTOR, "metavar": "FACTOR"},
-            "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.2f)" % cls.LEARNING_RATE},
+            "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.5f)" % cls.LEARNING_RATE},
             "language_model": {"help": "Language model (default %s)" % cls.LANGUAGE_MODEL, "metavar": "MODEL"}
         }
 
@@ -406,7 +409,7 @@ class BagOfWordsClassifier(TextEmbeddingClassifier):
     def custom_command_line_options(cls):
         return {
             "dropout": {"help": "dropout rate (default %0.2f)" % cls.DROPOUT},
-            "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.2f)" % cls.LEARNING_RATE},
+            "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.5f)" % cls.LEARNING_RATE},
             "language_model": {"help": "the spaCy language model to use (default '%s')" % cls.LANGUAGE_MODEL,
                                "metavar": "NAME"}
         }

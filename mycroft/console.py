@@ -11,7 +11,10 @@ import pandas
 from sklearn.datasets import fetch_20newsgroups
 
 from mycroft import __version__
-from .model import BagOfWordsClassifier, RNNClassifier, ConvolutionNetClassifier
+from .model import BagOfWordsClassifier, RNNClassifier, ConvolutionNetClassifier, TextEmbeddingClassifier
+
+TEXT_NAME = "text"
+LABEL_NAME = "label"
 
 
 def main(model_specifications, description=None, demo=False, args=None):
@@ -109,22 +112,23 @@ def training_argument_groups():
                             help="fraction of data to use for validation (default none, use all data for training)")
     data_group.add_argument("--validation-data", metavar="FILE",
                             help="validation data file (default no validation data)")
-    data_group.add_argument("--text-name", metavar="NAME", default="text",
-                            help="name of the text column (default 'text')")
-    data_group.add_argument("--label-name", metavar="NAME", default="label",
-                            help="name of the label column (default 'label')")
+    data_group.add_argument("--text-name", metavar="NAME", default=TEXT_NAME,
+                            help="name of the text column (default '%s')" % TEXT_NAME)
+    data_group.add_argument("--label-name", metavar="NAME", default=LABEL_NAME,
+                            help="name of the label column (default '%s')" % LABEL_NAME)
     data_group.add_argument("--omit-labels", metavar="LABEL", nargs="*", help="omit samples with these label values")
 
     training_group = arguments.add_argument_group("training",
                                                   description="Arguments for controlling the training procedure:")
-    training_group.add_argument("--epochs", type=int, default=100,
-                                help="maximum number of training epochs (default 100)")
-    training_group.add_argument("--early-stop", type=int, default=8,
-                                help="number of epochs with no improvement after which to stop (default 8)")
-    training_group.add_argument("--reduce", type=int, default=4,
+    training_group.add_argument("--epochs", type=int, default=TextEmbeddingClassifier.EPOCHS,
+                                help="maximum number of training epochs (default %d)" % TextEmbeddingClassifier.EPOCHS)
+    training_group.add_argument("--early-stop", type=int,
+                                help="number of epochs with no improvement after which to stop (default no early stop)")
+    training_group.add_argument("--reduce", type=int,
                                 help="number of epochs with no improvement after which to reduce the learning rate " +
-                                     "(default 4)")
-    training_group.add_argument("--batch-size", metavar="SIZE", type=int, default=32, help="batch size (default 32)")
+                                     "(default no change to the learning rate)")
+    training_group.add_argument("--batch-size", metavar="SIZE", type=int, default=TextEmbeddingClassifier.BATCH_SIZE,
+                                help="batch size (default %d)" % TextEmbeddingClassifier.BATCH_SIZE)
     training_group.add_argument("--model-directory", metavar="DIRECTORY",
                                 help="directory in which to store the model (default do not store a model)")
     training_group.add_argument("--logging", choices=["none", "progress", "epoch"], default="epoch",
@@ -141,13 +145,14 @@ def test_argument_groups(test_command):
     data_group = arguments.add_argument_group("data", description="Arguments for specifying the data to use:")
 
     data_group.add_argument("test", help="test data file")
-    data_group.add_argument("--batch-size", metavar="SIZE", type=int, default=32, help="batch size (default 32)")
+    data_group.add_argument("--batch-size", metavar="SIZE", type=int, default=TextEmbeddingClassifier.BATCH_SIZE,
+                            help="batch size (default %d)" % TextEmbeddingClassifier.BATCH_SIZE)
     data_group.add_argument("--limit", type=int, help="only use this many samples (default use all the data)")
-    data_group.add_argument("--text-name", metavar="NAME", default="text",
-                            help="name of the text column (default 'text')")
+    data_group.add_argument("--text-name", metavar="NAME", default=TEXT_NAME,
+                            help="name of the text column (default '%s')" % TEXT_NAME)
     if test_command == "evaluate":
-        data_group.add_argument("--label-name", metavar="NAME", default="label",
-                                help="name of the label column (default 'label')")
+        data_group.add_argument("--label-name", metavar="NAME", default=LABEL_NAME,
+                                help="name of the label column (default '%s')" % LABEL_NAME)
         data_group.add_argument("--omit-labels", metavar="LABEL", nargs="*",
                                 help="omit samples with these label values")
     return arguments
@@ -241,8 +246,8 @@ def read_data_file(data_filename, limit):
 def demo_command(args):
     def create_data_file(partition, filename, samples):
         data = pandas.DataFrame(
-            {"text": partition.data,
-             "label": [partition.target_names[target] for target in partition.target]}).dropna()[:samples]
+            {TEXT_NAME: partition.data,
+             LABEL_NAME: [partition.target_names[target] for target in partition.target]}).dropna()[:samples]
         data.to_csv(filename, index=False)
         return filename
 

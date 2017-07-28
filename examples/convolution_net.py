@@ -83,7 +83,7 @@ class ConvolutionNetClassifier(mycroft.model.TextEmbeddingClassifier):
             "kernel_size": {"help": "Size of kernel  (default %d)" % cls.KERNEL_SIZE, "metavar": "SIZE"},
             "pool_size": {"help": "Size of pooling layer (default %d)" % cls.POOL_SIZE, "metavar": "SIZE"},
             "lstm_output_size": {"help": "LSTM output size (default %d)" % cls.LSTM_OUTPUT_SIZE, "metavar": "SIZE"},
-            "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.2f)" % cls.LEARNING_RATE},
+            "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.5f)" % cls.LEARNING_RATE},
             "language_model": {"help": "Language model (default %s)" % cls.LANGUAGE_MODEL, "metavar": "MODEL"}
         }
 
