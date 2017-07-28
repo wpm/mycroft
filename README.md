@@ -50,6 +50,7 @@ Mycroft implements two kinds of word-embedding models.
   The same GloVe vectors are used to embed the tokens in the text.
   A softmax layer uses the average of the token embeddings to make a label prediction.
 
+Evaluation on training and validation sets returns the classification accuracy and the cross entropy loss.
 
 Run `mycroft demo` to see a quick example of the command line syntax and data formats.
 

@@ -58,7 +58,8 @@ def main(model_specifications, description=None, demo=False, args=None):
     evaluate_parser = subparsers.add_parser("evaluate", parents=[test_argument_groups("evaluate")],
                                             description=textwrap.dedent("""
         Evaluate the model's performance on a labeled data set. 
-        The test data is a comma- or tab-delimited file with columns of texts and labels."""))
+        The test data is a comma- or tab-delimited file with columns of texts and labels.
+        This returns the classfication accuracy and cross-entropy loss."""))
     evaluate_parser.set_defaults(func=evaluate_command)
 
     # Demo subcommand
