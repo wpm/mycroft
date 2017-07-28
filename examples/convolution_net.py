@@ -16,8 +16,7 @@ import mycroft.text
 # Write your own model by extending mycroft.model.TextEmbeddingClassifier. All you need to do is override the
 # constructor.
 class ConvolutionNetClassifier(mycroft.model.TextEmbeddingClassifier):
-    # (It is not necessary to write default parameter values at the top of the class, but I do it here for clarity's
-    # sake.)
+    # (It is not necessary make default parameter values class values, but I do it here for clarity's sake.)
     VOCABULARY_SIZE = 20000
     DROPOUT = 0.25
     FILTERS = 64
