@@ -117,7 +117,13 @@ def training_argument_groups():
 
     training_group = arguments.add_argument_group("training",
                                                   description="Arguments for controlling the training procedure:")
-    training_group.add_argument("--epochs", type=int, default=10, help="number of training epochs (default 10)")
+    training_group.add_argument("--epochs", type=int, default=100,
+                                help="maximum number of training epochs (default 100)")
+    training_group.add_argument("--early-stop", type=int, default=8,
+                                help="number of epochs with no improvement after which to stop (default 8)")
+    training_group.add_argument("--reduce", type=int, default=4,
+                                help="number of epochs with no improvement after which to reduce the learning rate " +
+                                     "(default 4)")
     training_group.add_argument("--batch-size", metavar="SIZE", type=int, default=32, help="batch size (default 32)")
     training_group.add_argument("--model-directory", metavar="DIRECTORY",
                                 help="directory in which to store the model (default do not store a model)")
@@ -164,10 +170,10 @@ def train_command(parser, model_class, args):
     # Train the model.
     model = model_class.create_from_command_line_arguments((texts, labels, label_names), args)
     verbose = {"none": 0, "progress": 1, "epoch": 2}[args.logging]
-    history = model.train(texts, labels, epochs=args.epochs, batch_size=args.batch_size,
-                          validation_fraction=args.validation_fraction, validation_data=validation_data,
-                          model_directory=args.model_directory, tensor_board_directory=args.tensor_board,
-                          verbose=verbose)
+    history = model.train(texts, labels, epochs=args.epochs, early_stop=args.early_stop, reduce=args.reduce,
+                          batch_size=args.batch_size, validation_fraction=args.validation_fraction,
+                          validation_data=validation_data, model_directory=args.model_directory,
+                          tensor_board_directory=args.tensor_board, verbose=verbose)
     print(model)
     losses = history.history[history.monitor]
     best_loss = min(losses)

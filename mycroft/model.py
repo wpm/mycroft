@@ -79,8 +79,10 @@ class TextEmbeddingClassifier:
         del d["model"]
         return d
 
-    def train(self, texts, labels, epochs=10, batch_size=32, validation_fraction=None, validation_data=None,
-              model_directory=None, tensor_board_directory=None, verbose=1):
+    def train(self, texts, labels, epochs=10, early_stop=8, reduce=4, batch_size=32, validation_fraction=None,
+              validation_data=None, model_directory=None, tensor_board_directory=None, verbose=1):
+        from keras.callbacks import EarlyStopping, ReduceLROnPlateau, TensorBoard
+
         def model_filename():
             return os.path.join(model_directory, TextEmbeddingClassifier.model_name)
 
@@ -105,12 +107,13 @@ class TextEmbeddingClassifier:
                 validation_data = (self.embedder.encode(validation_data[0]), self.label_indexes(validation_data[1]))
         else:
             monitor = "loss"
+        callbacks = []
         if tensor_board_directory:
-            from keras.callbacks import TensorBoard
-
-            callbacks = [TensorBoard(log_dir=tensor_board_directory)]
-        else:
-            callbacks = []
+            callbacks.append(TensorBoard(log_dir=tensor_board_directory))
+        if early_stop:
+            callbacks.append(EarlyStopping(monitor=monitor, patience=early_stop))
+        if reduce:
+            callbacks.append(ReduceLROnPlateau(monitor=monitor, patience=reduce))
         if model_directory is not None:
             create_directory(model_directory)
             if doing_validation:
@@ -137,6 +140,8 @@ class TextEmbeddingClassifier:
             with open(history_filename(), mode="w") as f:
                 h = {"epoch": history.epoch, "history": history.history, "monitor": history.monitor,
                      "params": history.params}
+                # noinspection PyTypeChecker
+                h["history"]["lr"] = [float(x) for x in h["history"]["lr"]]  # JSON requires float, not numpy.float32.
                 json.dump(h, f, sort_keys=True, indent=4, separators=(",", ": "))
 
         return history
@@ -232,6 +237,7 @@ class RNNClassifier(TextEmbeddingClassifier):
     RNN_TYPE = "gru"
     BIDIRECTIONAL = False
     DROPOUT = 0.5
+    LEARNING_RATE = 0.001
     LANGUAGE_MODEL = "en"
 
     @classmethod
@@ -247,6 +253,7 @@ class RNNClassifier(TextEmbeddingClassifier):
             "rnn_units": {"help": "RNN units (default %d)" % cls.RNN_UNITS, "metavar": "UNITS"},
             "bidirectional": {"help": "bidirectional RNN? (default %s)" % cls.BIDIRECTIONAL},
             "dropout": {"help": "dropout rate (default %0.2f)" % cls.DROPOUT},
+            "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.2f)" % cls.LEARNING_RATE},
             "language_model": {"help": "The spaCy language model to use (default '%s')" % cls.LANGUAGE_MODEL,
                                "metavar": "NAME"}
         }
@@ -254,9 +261,10 @@ class RNNClassifier(TextEmbeddingClassifier):
     def __init__(self, training,
                  sequence_length=None, vocabulary_size=VOCABULARY_SIZE, train_embeddings=TRAIN_EMBEDDINGS,
                  language_model=LANGUAGE_MODEL, rnn_type=RNN_TYPE, rnn_units=RNN_UNITS, bidirectional=BIDIRECTIONAL,
-                 dropout=DROPOUT):
+                 dropout=DROPOUT, learning_rate=LEARNING_RATE):
         from keras.models import Sequential
         from keras.layers import Bidirectional, Dense, Dropout, GRU, LSTM
+        from keras.optimizers import Adam
 
         label_names = training[2]
         if sequence_length is None:
@@ -274,7 +282,8 @@ class RNNClassifier(TextEmbeddingClassifier):
         model.add(rnn)
         model.add(Dropout(dropout, name="dropout"))
         model.add(Dense(len(label_names), activation="softmax", name="softmax"))
-        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+        optimizer = Adam(lr=learning_rate)
+        model.compile(optimizer=optimizer, loss="sparse_categorical_crossentropy", metrics=["accuracy"])
         super().__init__(model, embedder, label_names)
 
     def __repr__(self):
@@ -316,6 +325,7 @@ class ConvolutionNetClassifier(TextEmbeddingClassifier):
     FILTERS = 100
     KERNEL_SIZE = 3
     POOL_FACTOR = 4
+    LEARNING_RATE = 0.001
     LANGUAGE_MODEL = "en"
 
     @classmethod
@@ -330,14 +340,17 @@ class ConvolutionNetClassifier(TextEmbeddingClassifier):
             "filters": {"help": "Number of filters (default %d)" % cls.FILTERS, "metavar": "FILTERS"},
             "kernel_size": {"help": "Size of kernel (default %d)" % cls.KERNEL_SIZE, "metavar": "SIZE"},
             "pool_factor": {"help": "Pooling downscale factor (default %d)" % cls.POOL_FACTOR, "metavar": "FACTOR"},
+            "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.2f)" % cls.LEARNING_RATE},
             "language_model": {"help": "Language model (default %s)" % cls.LANGUAGE_MODEL, "metavar": "MODEL"}
         }
 
     def __init__(self, training,
                  sequence_length=None, vocabulary_size=VOCABULARY_SIZE, dropout=DROPOUT, filters=FILTERS,
-                 kernel_size=KERNEL_SIZE, pool_factor=POOL_FACTOR, language_model=LANGUAGE_MODEL):
+                 kernel_size=KERNEL_SIZE, pool_factor=POOL_FACTOR, learning_rate=LEARNING_RATE,
+                 language_model=LANGUAGE_MODEL):
         from keras.layers import Dropout, Conv1D, Flatten, MaxPooling1D, Dense
         from keras.models import Sequential
+        from keras.optimizers import Adam
 
         label_names = training[2]
         if sequence_length is None:
@@ -351,7 +364,8 @@ class ConvolutionNetClassifier(TextEmbeddingClassifier):
         model.add(Flatten(name="flatten"))
         model.add(Dropout(dropout, name="dropout"))
         model.add(Dense(len(label_names), activation="softmax", name="softmax"))
-        model.compile(loss="sparse_categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+        optimizer = Adam(lr=learning_rate)
+        model.compile(optimizer=optimizer, loss="sparse_categorical_crossentropy", metrics=["accuracy"])
         super().__init__(model, embedder, label_names)
 
     def __repr__(self):
@@ -381,12 +395,14 @@ class BagOfWordsClassifier(TextEmbeddingClassifier):
     A softmax layer uses the average of the GloVe token embeddings to make a label prediction.
     """
     DROPOUT = 0.5
+    LEARNING_RATE = 0.001
     LANGUAGE_MODEL = "en"
 
     @classmethod
     def custom_command_line_options(cls):
         return {
             "dropout": {"help": "dropout rate (default %0.2f)" % cls.DROPOUT},
+            "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.2f)" % cls.LEARNING_RATE},
             "language_model": {"help": "the spaCy language model to use (default '%s')" % cls.LANGUAGE_MODEL,
                                "metavar": "NAME"}
         }

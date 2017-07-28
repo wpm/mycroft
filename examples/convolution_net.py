@@ -24,6 +24,7 @@ class ConvolutionNetClassifier(mycroft.model.TextEmbeddingClassifier):
     KERNEL_SIZE = 5
     POOL_SIZE = 4
     LSTM_OUTPUT_SIZE = 70
+    LEARNING_RATE = 0.001
     LANGUAGE_MODEL = "en"
 
     # Mycroft creates command line options for every keyword argument in the constructor. Argument names, types, and
@@ -34,9 +35,10 @@ class ConvolutionNetClassifier(mycroft.model.TextEmbeddingClassifier):
     def __init__(self, training,
                  sequence_length=None, vocabulary_size=VOCABULARY_SIZE, dropout=DROPOUT, filters=FILTERS,
                  kernel_size=KERNEL_SIZE, pool_size=POOL_SIZE, lstm_output_size=LSTM_OUTPUT_SIZE,
-                 language_model=LANGUAGE_MODEL):
+                 language_model=LANGUAGE_MODEL, learning_rate=LEARNING_RATE):
         from keras.layers import Dropout, Conv1D, MaxPooling1D, LSTM, Dense
         from keras.models import Sequential
+        from keras.optimizers import Adam
 
         # If the sequence length is not specified, use the largest number of tokens in any of the text. This is an
         # example of how model hyper-parameters might depend on the training data.
@@ -59,7 +61,8 @@ class ConvolutionNetClassifier(mycroft.model.TextEmbeddingClassifier):
         # 2. The final fully-connected layer has been modified to handle multiclass classification instead of just
         # binary.
         model.add(Dense(len(label_names), activation="softmax", name="softmax"))
-        model.compile(loss="sparse_categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+        optimizer = Adam(lr=learning_rate)
+        model.compile(optimizer=optimizer, loss="sparse_categorical_crossentropy", metrics=["accuracy"])
 
         # This passes a Keras model, a mycroft.text.Embedder, and the label names back to the parent constructor.
         super().__init__(model, embedder, label_names)
@@ -80,6 +83,7 @@ class ConvolutionNetClassifier(mycroft.model.TextEmbeddingClassifier):
             "kernel_size": {"help": "Size of kernel  (default %d)" % cls.KERNEL_SIZE, "metavar": "SIZE"},
             "pool_size": {"help": "Size of pooling layer (default %d)" % cls.POOL_SIZE, "metavar": "SIZE"},
             "lstm_output_size": {"help": "LSTM output size (default %d)" % cls.LSTM_OUTPUT_SIZE, "metavar": "SIZE"},
+            "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.2f)" % cls.LEARNING_RATE},
             "language_model": {"help": "Language model (default %s)" % cls.LANGUAGE_MODEL, "metavar": "MODEL"}
         }
 
