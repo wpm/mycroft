@@ -106,12 +106,12 @@ def training_argument_groups():
     arguments = argparse.ArgumentParser(add_help=False)
     data_group = arguments.add_argument_group("data",
                                               description="Arguments for specifying the training data:")
-    data_group.add_argument("training_data", metavar="TRAINING-FILE", help="training data file")
+    data_group.add_argument("training_data", metavar="FILE", nargs="+", help="training data files")
     data_group.add_argument("--limit", type=int, help="only train on this many samples (default use all the data)")
     data_group.add_argument("--validation-fraction", metavar="FRACTION", type=float,
                             help="fraction of data to use for validation (default none, use all data for training)")
-    data_group.add_argument("--validation-data", metavar="FILE",
-                            help="validation data file (default no validation data)")
+    data_group.add_argument("--validation-data", metavar="FILE", nargs="+",
+                            help="validation data files (default no validation data)")
     data_group.add_argument("--text-name", metavar="NAME", default=TEXT_NAME,
                             help="name of the text column (default '%s')" % TEXT_NAME)
     data_group.add_argument("--label-name", metavar="NAME", default=LABEL_NAME,
@@ -144,7 +144,7 @@ def test_argument_groups(test_command):
     arguments.add_argument("model", help="directory or file containing the trained model")
     data_group = arguments.add_argument_group("data", description="Arguments for specifying the data to use:")
 
-    data_group.add_argument("test", help="test data file")
+    data_group.add_argument("test_data", metavar="FILE", nargs="+", help="test data files")
     data_group.add_argument("--batch-size", metavar="SIZE", type=int, default=TextEmbeddingClassifier.BATCH_SIZE,
                             help="batch size (default %d)" % TextEmbeddingClassifier.BATCH_SIZE)
     data_group.add_argument("--limit", type=int, help="only use this many samples (default use all the data)")
@@ -188,11 +188,12 @@ def train_command(parser, model_class, args):
     print("Best epoch %d of %d: %s" % (best_epoch + 1, len(history.epoch), s))
 
 
+# noinspection PyUnresolvedReferences,PyTypeChecker
 def predict_command(args):
     from .model import load_embedding_model
 
     model = load_embedding_model(args.model)
-    data = read_data_file(args.test, args.limit)
+    data = read_data_files(args.test_data, args.limit)
     label_probabilities, predicted_labels = model.predict(data[args.text_name], args.batch_size)
     predictions = pandas.DataFrame(label_probabilities.reshape((len(data), model.num_labels)),
                                    columns=model.label_names)
@@ -205,18 +206,19 @@ def evaluate_command(args):
     from .model import load_embedding_model
 
     model = load_embedding_model(args.model)
-    texts, labels, _ = preprocess_labeled_data(args.test, args.limit, args.omit_labels, args.text_name, args.label_name,
-                                               model.label_names)
+    texts, labels, _ = preprocess_labeled_data(args.test_data, args.limit, args.omit_labels, args.text_name,
+                                               args.label_name, model.label_names)
     results = model.evaluate(texts, labels, args.batch_size)
     print("\n" + " - ".join("%s: %0.5f" % (name, score) for name, score in results))
 
 
-def preprocess_labeled_data(data_filename, limit, omit_labels, text_name, label_name, label_names=None):
+# noinspection PyUnresolvedReferences
+def preprocess_labeled_data(data_filenames, limit, omit_labels, text_name, label_name, label_names=None):
     """
     Get text and label information from a CSV file.
 
-    :param data_filename: the name of the CSV file
-    :type data_filename: str
+    :param data_filenames: the name of the CSV file
+    :type data_filenames: list of str
     :param limit: use only this many lines, or if None use the whole file
     :type limit: int or None
     :param omit_labels: omit lines that have one of these as a label
@@ -230,7 +232,7 @@ def preprocess_labeled_data(data_filename, limit, omit_labels, text_name, label_
     :return: texts, labels, the set of labels
     :rtype: (pandas.Series, numpy.array, list of str)
     """
-    data = read_data_file(data_filename, limit)
+    data = read_data_files(data_filenames, limit)
     if omit_labels:
         data = data[~data[label_name].isin(omit_labels)]
     data[label_name] = pandas.Categorical(data[label_name].astype(str), categories=label_names)
@@ -239,8 +241,9 @@ def preprocess_labeled_data(data_filename, limit, omit_labels, text_name, label_
     return data[text_name], labels, label_names
 
 
-def read_data_file(data_filename, limit):
-    return pandas.read_csv(data_filename, sep=None, engine="python").dropna()[:limit]
+def read_data_files(data_filenames, limit):
+    files = [pandas.read_csv(data_filename, sep=None, engine="python").dropna() for data_filename in data_filenames]
+    return pandas.concat(files)[:limit]
 
 
 def demo_command(args):
