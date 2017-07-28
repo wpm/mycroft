@@ -403,14 +403,12 @@ class BagOfWordsClassifier(TextEmbeddingClassifier):
     """
     A softmax layer uses the average of the GloVe token embeddings to make a label prediction.
     """
-    DROPOUT = 0.5
     LEARNING_RATE = 0.001
     LANGUAGE_MODEL = "en"
 
     @classmethod
     def custom_command_line_options(cls):
         return {
-            "dropout": {"help": "dropout rate (default %0.2f)" % cls.DROPOUT},
             "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.5f)" % cls.LEARNING_RATE},
             "language_model": {"help": "the spaCy language model to use (default '%s')" % cls.LANGUAGE_MODEL,
                                "metavar": "NAME"}
