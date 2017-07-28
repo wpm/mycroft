@@ -147,8 +147,10 @@ class TextEmbeddingClassifier:
             with open(history_filename(), mode="w") as f:
                 h = {"epoch": history.epoch, "history": history.history, "monitor": history.monitor,
                      "params": history.params}
-                # noinspection PyTypeChecker
-                h["history"]["lr"] = [float(x) for x in h["history"]["lr"]]  # JSON requires float, not numpy.float32.
+                # JSON requires float, not numpy.float32.
+                if "lr" in h["history"]:
+                    # noinspection PyTypeChecker
+                    h["history"]["lr"] = [float(x) for x in h["history"]["lr"]]
                 json.dump(h, f, sort_keys=True, indent=4, separators=(",", ": "))
 
         return history
