@@ -416,16 +416,18 @@ class BagOfWordsClassifier(TextEmbeddingClassifier):
                                "metavar": "NAME"}
         }
 
-    def __init__(self, training, language_model=LANGUAGE_MODEL):
-        from keras.models import Sequential
+    def __init__(self, training, learning_rate=LEARNING_RATE, language_model=LANGUAGE_MODEL):
         from keras.layers import Dense
+        from keras.models import Sequential
+        from keras.optimizers import Adam
         from .text import BagOfWordsEmbedder
 
         label_names = training[2]
         embedder = BagOfWordsEmbedder(language_model)
         model = Sequential()
         model.add(Dense(len(label_names), input_shape=(embedder.embedding_size,), activation="softmax", name="softmax"))
-        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+        optimizer = Adam(lr=learning_rate)
+        model.compile(optimizer=optimizer, loss="sparse_categorical_crossentropy", metrics=["accuracy"])
         super().__init__(model, embedder, label_names)
 
     def __repr__(self):
