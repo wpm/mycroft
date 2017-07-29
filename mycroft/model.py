@@ -6,7 +6,6 @@ import pickle
 import sys
 import textwrap
 from io import StringIO
-from itertools import count
 
 from .text import TextSequenceEmbedder, longest_text
 
@@ -299,6 +298,10 @@ class RNNClassifier(TextEmbeddingClassifier):
         model.add(Dense(len(label_names), activation="softmax", name="softmax"))
         optimizer = Adam(lr=learning_rate)
         model.compile(optimizer=optimizer, loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+
+        self.rnn_units = rnn_units
+        self.bidirectional = bidirectional
+        self.dropout = dropout
         super().__init__(model, embedder, label_names)
 
     def __repr__(self):
@@ -308,30 +311,6 @@ class RNNClassifier(TextEmbeddingClassifier):
             bidi = ""
         return "Neural text sequence classifier: %d labels, RNN units %s,%s dropout rate %0.2f\n%s" % (
             self.num_labels, self.rnn_units, bidi, self.dropout, self.embedder)
-
-    @property
-    def rnn_units(self):
-        from keras.layers import Bidirectional
-
-        rnn_units = []
-        for i in count(1):
-            rnn = self.model.get_layer("rnn-%d" % i)
-            if rnn is None:
-                break
-            if isinstance(rnn, Bidirectional):
-                rnn = rnn.layer
-            rnn_units.append(rnn.units)
-        return tuple(rnn_units)
-
-    @property
-    def bidirectional(self):
-        from keras.layers import Bidirectional
-
-        return isinstance(self.model.get_layer("rnn-1"), Bidirectional)
-
-    @property
-    def dropout(self):
-        return self.model.get_layer("dropout-1").rate
 
 
 class ConvolutionNetClassifier(TextEmbeddingClassifier):
@@ -386,28 +365,17 @@ class ConvolutionNetClassifier(TextEmbeddingClassifier):
         model.add(Dense(len(label_names), activation="softmax", name="softmax"))
         optimizer = Adam(lr=learning_rate)
         model.compile(optimizer=optimizer, loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+
+        self.filters = filters
+        self.kernel_size = kernel_size
+        self.pool_factor = pool_factor
+        self.dropout = dropout
         super().__init__(model, embedder, label_names)
 
     def __repr__(self):
         return "Convolutional text sequence classifier: " + \
                "%d labels, %d filters, kernel size %d, pool factor %d, dropout rate %0.2f\n%s" % (
                    self.num_labels, self.filters, self.kernel_size, self.pool_factor, self.dropout, self.embedder)
-
-    @property
-    def filters(self):
-        return self.model.get_layer("convolution").filters
-
-    @property
-    def kernel_size(self):
-        return self.model.get_layer("convolution").kernel_size[0]
-
-    @property
-    def pool_factor(self):
-        return self.model.get_layer("pooling").pool_size[0]
-
-    @property
-    def dropout(self):
-        return self.model.get_layer("dropout").rate
 
 
 class BagOfWordsClassifier(TextEmbeddingClassifier):
