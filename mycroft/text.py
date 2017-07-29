@@ -117,12 +117,12 @@ class TextSequenceEmbedder(Embedder):
         return self.embedding_matrix.shape[0]
 
 
-text_parser_singleton = None
+text_parser_singletons = {}
 
 
-def text_parser(language_model):
-    global text_parser_singleton
-    if text_parser_singleton is None:
+def text_parser(language_model, tagger=None, parser=None, entity=None):
+    global text_parser_singletons
+    if language_model not in text_parser_singletons:
         import spacy
-        text_parser_singleton = spacy.load(language_model, tagger=None, parser=None, entity=None)
-    return text_parser_singleton
+        text_parser_singletons[language_model] = spacy.load(language_model, tagger=tagger, parser=parser, entity=entity)
+    return text_parser_singletons[language_model]
