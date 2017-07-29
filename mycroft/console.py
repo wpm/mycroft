@@ -34,7 +34,8 @@ def main(model_specifications, description=None, demo=False, args=None):
     :param args: command line arguments, if None, get them from sys.argv
     :type args: list of str or None
     """
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=description)
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=description,
+                                     fromfile_prefix_chars='@')
     parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.set_defaults(func=lambda _: parser.print_usage())
 
