@@ -19,11 +19,9 @@ def load_embedding_model(model_directory):
     :return: the model
     :rtype: TextEmbeddingClassifier
     """
-    from keras.models import load_model
-
     with open(os.path.join(model_directory, TextEmbeddingClassifier.classifier_name), mode="rb") as f:
         model = pickle.load(f)
-    model.model = load_model(os.path.join(model_directory, TextEmbeddingClassifier.model_name))
+    model.load_model(model_directory)
     return model
 
 
@@ -169,6 +167,10 @@ class TextEmbeddingClassifier:
 
     def label_indexes(self, labels):
         return [self.label_names.index(label) for label in labels]
+
+    def load_model(self, model_directory):
+        from keras.models import load_model
+        self.model = load_model(os.path.join(model_directory, TextEmbeddingClassifier.model_name))
 
     @property
     def num_labels(self):
