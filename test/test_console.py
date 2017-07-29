@@ -6,7 +6,7 @@ from unittest import TestCase
 import pandas
 
 from mycroft.console import default_main
-from mycroft.model import load_embedding_model
+from mycroft.model import load_embedding_model, BagOfWordsClassifier, ConvolutionNetClassifier
 from test import to_lines
 
 
@@ -28,19 +28,32 @@ class TestConsole(TestCase):
 
     def test_bow(self):
         self.run_command(
-            "train bow %s --model-directory %s --logging none" % (self.data_filename, self.model_directory))
+            "train bow %s --save-model %s --logging none" % (self.data_filename, self.model_directory))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.hd5")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "classifier.pk")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "description.txt")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "history.json")))
+        model = load_embedding_model(self.model_directory)
+        self.assertIsInstance(model, BagOfWordsClassifier)
         self.run_command("predict %s %s" % (self.model_directory, self.data_filename))
         self.run_command("evaluate %s %s" % (self.model_directory, self.data_filename))
 
     def test_non_default_sequence_length(self):
-        self.run_command("train conv %s --model-directory %s --logging none --sequence-length 17" % (
+        self.run_command("train conv %s --save-model %s --logging none --sequence-length 17" % (
             self.data_filename, self.model_directory))
         model = load_embedding_model(self.model_directory)
+        self.assertIsInstance(model, ConvolutionNetClassifier)
         self.assertEqual(17, model.model.get_layer("embedding").input_length)
+
+    def test_model_loading(self):
+        self.run_command(
+            "train bow %s --save-model %s --logging none" % (self.data_filename, self.model_directory))
+        self.run_command(
+            "train load %s --load-model %s --logging none" % (self.data_filename, self.model_directory))
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.hd5")))
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "classifier.pk")))
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "description.txt")))
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "history.json")))
 
     def test_demo(self):
         self.run_command("demo --directory %s" % self.directory)

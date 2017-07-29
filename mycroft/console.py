@@ -11,7 +11,8 @@ import pandas
 from sklearn.datasets import fetch_20newsgroups
 
 from mycroft import __version__
-from .model import BagOfWordsClassifier, RNNClassifier, ConvolutionNetClassifier, TextEmbeddingClassifier
+from .model import BagOfWordsClassifier, RNNClassifier, ConvolutionNetClassifier, TextEmbeddingClassifier, \
+    load_embedding_model
 
 TEXT_NAME = "text"
 LABEL_NAME = "label"
@@ -48,7 +49,13 @@ def main(model_specifications, description=None, demo=False, args=None):
         model_argument_group = \
             model_parser.add_argument_group("model", description="Arguments for specifying the model configuration:")
         model_class.command_line_arguments(model_argument_group)
-        model_parser.set_defaults(func=partial(train_command, parser, model_class))
+        model_parser.set_defaults(func=partial(train_command, parser, model_class.create_from_command_line_arguments))
+    load_parser = model_parsers.add_parser("load", parents=[training_argument_groups()],
+                                           description="load a previously-trained model")
+    load_parser.add_argument("--load-model", metavar="DIRECTORY", default=".",
+                             help="directory from which to load a model (default current)")
+    load_parser.set_defaults(
+        func=partial(train_command, parser, lambda _, args: load_embedding_model(args.load_model)))
 
     # Predict subcommand
     predict_parser = subparsers.add_parser("predict", parents=[test_argument_groups("predict")],
@@ -130,8 +137,8 @@ def training_argument_groups():
                                      "(default no change to the learning rate)")
     training_group.add_argument("--batch-size", metavar="SIZE", type=int, default=TextEmbeddingClassifier.BATCH_SIZE,
                                 help="batch size (default %d)" % TextEmbeddingClassifier.BATCH_SIZE)
-    training_group.add_argument("--model-directory", metavar="DIRECTORY",
-                                help="directory in which to store the model (default do not store a model)")
+    training_group.add_argument("--save-model", metavar="DIRECTORY",
+                                help="directory in which to save the model (default do not save the model)")
     training_group.add_argument("--logging", choices=["none", "progress", "epoch"], default="epoch",
                                 help="no logging, a progress bar, one line per epoch (default per epoch)")
     training_group.add_argument("--tensor-board", metavar="DIRECTORY",
@@ -142,7 +149,7 @@ def training_argument_groups():
 def test_argument_groups(test_command):
     assert test_command in ["predict", "evaluate"]
     arguments = argparse.ArgumentParser(add_help=False)
-    arguments.add_argument("model", help="directory or file containing the trained model")
+    arguments.add_argument("model", help="directory containing the trained model")
     data_group = arguments.add_argument_group("data", description="Arguments for specifying the data to use:")
 
     data_group.add_argument("test_data", metavar="FILE", nargs="+", help="test data files")
@@ -159,7 +166,7 @@ def test_argument_groups(test_command):
     return arguments
 
 
-def train_command(parser, model_class, args):
+def train_command(parser, model_factory, args):
     if args.validation_fraction and args.validation_data:
         parser.error("Cannot specify both a validation fraction and a validation set.")
     # Preprocess training data.
@@ -174,11 +181,11 @@ def train_command(parser, model_class, args):
     else:
         validation_data = None
     # Train the model.
-    model = model_class.create_from_command_line_arguments((texts, labels, label_names), args)
+    model = model_factory((texts, labels, label_names), args)
     verbose = {"none": 0, "progress": 1, "epoch": 2}[args.logging]
     history = model.train(texts, labels, epochs=args.epochs, early_stop=args.early_stop, reduce=args.reduce,
                           batch_size=args.batch_size, validation_fraction=args.validation_fraction,
-                          validation_data=validation_data, model_directory=args.model_directory,
+                          validation_data=validation_data, model_directory=args.save_model,
                           tensor_board_directory=args.tensor_board, verbose=verbose)
     if verbose:
         print(model)
@@ -191,8 +198,6 @@ def train_command(parser, model_class, args):
 
 # noinspection PyUnresolvedReferences,PyTypeChecker
 def predict_command(args):
-    from .model import load_embedding_model
-
     model = load_embedding_model(args.model)
     data = read_data_files(args.test_data, args.limit)
     label_probabilities, predicted_labels = model.predict(data[args.text_name], args.batch_size)
@@ -263,7 +268,7 @@ def demo_command(args):
     test_filename = create_data_file(newsgroups_test, os.path.join(args.directory, "test.csv"), 100)
     model_directory = os.path.join(args.directory, "model")
     print("Train a model.\n")
-    cmd = "train bow %s --model-directory %s --epochs 5 --logging progress\n" % (
+    cmd = "train bow %s --save-model %s --epochs 5 --logging progress\n" % (
         train_filename, model_directory)
     print("mycroft " + cmd)
     default_main(cmd.split())
