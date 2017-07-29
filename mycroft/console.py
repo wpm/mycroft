@@ -107,7 +107,7 @@ def training_argument_groups():
     arguments = argparse.ArgumentParser(add_help=False)
     data_group = arguments.add_argument_group("data",
                                               description="Arguments for specifying the training data:")
-    data_group.add_argument("training_data", metavar="FILE", nargs="+", help="training data files")
+    data_group.add_argument("training_data", metavar="FILE", nargs="+", help="training data file")
     data_group.add_argument("--limit", type=int, help="only train on this many samples (default use all the data)")
     data_group.add_argument("--validation-fraction", metavar="FRACTION", type=float,
                             help="fraction of data to use for validation (default none, use all data for training)")
@@ -123,9 +123,9 @@ def training_argument_groups():
                                                   description="Arguments for controlling the training procedure:")
     training_group.add_argument("--epochs", type=int, default=TextEmbeddingClassifier.EPOCHS,
                                 help="maximum number of training epochs (default %d)" % TextEmbeddingClassifier.EPOCHS)
-    training_group.add_argument("--early-stop", type=int,
+    training_group.add_argument("--early-stop", metavar="EPOCHS", type=int,
                                 help="number of epochs with no improvement after which to stop (default no early stop)")
-    training_group.add_argument("--reduce", type=int,
+    training_group.add_argument("--reduce", metavar="EPOCHS", type=int,
                                 help="number of epochs with no improvement after which to reduce the learning rate " +
                                      "(default no change to the learning rate)")
     training_group.add_argument("--batch-size", metavar="SIZE", type=int, default=TextEmbeddingClassifier.BATCH_SIZE,
