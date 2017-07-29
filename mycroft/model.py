@@ -42,7 +42,7 @@ class TextEmbeddingClassifier:
     Derived classes may optionally supply a CUSTOM_COMMAND_LINE_OPTIONS dictionary, which specifies additional keyword
     arguments to provide to the argparse.addArgument command.
     """
-    EPOCHS = 100
+    EPOCHS = 10
     BATCH_SIZE = 32
 
     # Names of files created in the model directory.
