@@ -37,13 +37,13 @@ Mycroft implements two kinds of word-embedding models.
 
   300-dimensional [GloVe](https://nlp.stanford.edu/projects/glove/) vectors are used to embed the text into matrices of
   size _sequence length × 300_, clipping or padding the first dimension for each individual text as needed.
-  A recurrent neural network (either a GRU or an LSTM) converts these embeddings to a single vector which a softmax
-  layer then uses to make a label prediction.
+  A stack of recurrent neural networks (either GRUs or LSTMs) converts these embeddings to a single vector which a
+  softmax layer then uses to make a label prediction.
 
 * __Convolutional network__
 
   This works the same as the recurrent neural network, except that it summarizes the sentence embedding matrices with
-  a 1-dimensional convolutional/max-pooling network instead of a recurrent neural network. 
+  a 1-dimensional convolutional/max-pooling network instead of a stack of recurrent neural networks. 
 
 * __Bag of words__
 

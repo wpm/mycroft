@@ -41,7 +41,15 @@ class TestModel(TestCase):
         model = RNNClassifier((self.texts, self.labels, self.label_names))
         self.assertEqual(2, model.num_labels)
         self.assertEqual(0.5, model.dropout)
-        self.assertEqual(64, model.rnn_units)
+        self.assertEqual((64,), model.rnn_units)
+        self.assertEqual(False, model.bidirectional)
+        self.embedding_model_train_predict_evaluate(model)
+
+    def test_multilayer_rnn(self):
+        model = RNNClassifier((self.texts, self.labels, self.label_names), rnn_units=(32, 64, 32))
+        self.assertEqual(2, model.num_labels)
+        self.assertEqual(0.5, model.dropout)
+        self.assertEqual((32, 64, 32), model.rnn_units)
         self.assertEqual(False, model.bidirectional)
         self.embedding_model_train_predict_evaluate(model)
 

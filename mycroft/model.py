@@ -6,6 +6,7 @@ import pickle
 import sys
 import textwrap
 from io import StringIO
+from itertools import count
 
 from .text import TextSequenceEmbedder, longest_text
 
@@ -242,7 +243,7 @@ class RNNClassifier(TextEmbeddingClassifier):
     """
     VOCABULARY_SIZE = 20000
     TRAIN_EMBEDDINGS = False
-    RNN_UNITS = 64
+    RNN_UNITS = (64,)
     RNN_TYPE = "gru"
     BIDIRECTIONAL = False
     DROPOUT = 0.5
@@ -259,7 +260,9 @@ class RNNClassifier(TextEmbeddingClassifier):
                                 "metavar": "SIZE"},
             "train_embeddings": {"help": "train word embeddings? (default %s)" % cls.TRAIN_EMBEDDINGS},
             "rnn_type": {"choices": ["gru", "lstm"], "help": "RNN type (default %s)" % cls.RNN_TYPE},
-            "rnn_units": {"help": "RNN units (default %d)" % cls.RNN_UNITS, "metavar": "UNITS"},
+            "rnn_units": {
+                "help": "number of units in stacked RNN layers (default one layer with %d units)" % cls.RNN_UNITS[0],
+                "metavar": "UNITS"},
             "bidirectional": {"help": "bidirectional RNN? (default %s)" % cls.BIDIRECTIONAL},
             "dropout": {"help": "dropout rate (default %0.2f)" % cls.DROPOUT},
             "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.5f)" % cls.LEARNING_RATE},
@@ -284,12 +287,15 @@ class RNNClassifier(TextEmbeddingClassifier):
         model.add(embedder.embedding_layer_factory()(input_length=sequence_length, mask_zero=True,
                                                      trainable=train_embeddings, name="embedding"))
         rnn_class = {"lstm": LSTM, "gru": GRU}[rnn_type]
-        if bidirectional:
-            rnn = Bidirectional(rnn_class(rnn_units), name="rnn")
-        else:
-            rnn = rnn_class(rnn_units, name="rnn")
-        model.add(rnn)
-        model.add(Dropout(dropout, name="dropout"))
+        for i, units in enumerate(rnn_units, 1):
+            name = "rnn-%d" % i
+            return_sequences = i < len(rnn_units)
+            if bidirectional:
+                rnn = Bidirectional(rnn_class(units, return_sequences=return_sequences), name=name)
+            else:
+                rnn = rnn_class(units, return_sequences=return_sequences, name=name)
+            model.add(rnn)
+            model.add(Dropout(dropout, name="dropout-%d" % i))
         model.add(Dense(len(label_names), activation="softmax", name="softmax"))
         optimizer = Adam(lr=learning_rate)
         model.compile(optimizer=optimizer, loss="sparse_categorical_crossentropy", metrics=["accuracy"])
@@ -300,27 +306,32 @@ class RNNClassifier(TextEmbeddingClassifier):
             bidi = " bidirectional,"
         else:
             bidi = ""
-        return "Neural text sequence classifier: %d labels, %d RNN units,%s dropout rate %0.2f\n%s" % (
+        return "Neural text sequence classifier: %d labels, RNN units %s,%s dropout rate %0.2f\n%s" % (
             self.num_labels, self.rnn_units, bidi, self.dropout, self.embedder)
 
     @property
     def rnn_units(self):
         from keras.layers import Bidirectional
 
-        rnn = self.model.get_layer("rnn")
-        if isinstance(rnn, Bidirectional):
-            rnn = rnn.layer
-        return rnn.units
+        rnn_units = []
+        for i in count(1):
+            rnn = self.model.get_layer("rnn-%d" % i)
+            if rnn is None:
+                break
+            if isinstance(rnn, Bidirectional):
+                rnn = rnn.layer
+            rnn_units.append(rnn.units)
+        return tuple(rnn_units)
 
     @property
     def bidirectional(self):
         from keras.layers import Bidirectional
 
-        return isinstance(self.model.get_layer("rnn"), Bidirectional)
+        return isinstance(self.model.get_layer("rnn-1"), Bidirectional)
 
     @property
     def dropout(self):
-        return self.model.get_layer("dropout").rate
+        return self.model.get_layer("dropout-1").rate
 
 
 class ConvolutionNetClassifier(TextEmbeddingClassifier):
