@@ -12,7 +12,7 @@ free.
 
 ## Installation
 
-Install Mycroft by running `python setup.py install`.
+Install Mycroft with `pip install mycroft` or by running `python setup.py install` in this directory.
 
 Mycroft uses the [spaCy](https://spacy.io/) text natural language processing toolkit to process text.
 The built-in models just use spaCy for tokenization, but models built on Mycroft's programmatic interface may use
