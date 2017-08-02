@@ -5,9 +5,8 @@ import tempfile
 from unittest import TestCase
 
 import numpy
+from mycroft.text import text_parser, BagOfWordsEmbedder, TextSequenceEmbedder, Embedder, text_statistics
 from numpy.testing import assert_array_equal
-
-from mycroft.text import text_parser, BagOfWordsEmbedder, TextSequenceEmbedder, longest_text, Embedder
 
 
 class TestText(TestCase):
@@ -19,8 +18,11 @@ class TestText(TestCase):
         english_2 = text_parser("en")
         self.assertEqual(english_1, english_2)
 
-    def test_longest_text(self):
-        self.assertEqual(6, longest_text(["Hello", "To be or not to be", "The boy cried"]))
+    def test_text_statistics(self):
+        longest_text, vocabulary_size = text_statistics(["Jabberwocky", "the cat is in the hat", "the dog is tired"])
+        self.assertEqual(6, longest_text)
+        # "Jabberwocky" does not have an embedding vector.
+        self.assertEqual(7, vocabulary_size)
 
     def test_base_class(self):
         embedder = Embedder()
@@ -62,6 +64,7 @@ class TestTextSerialization(TestCase):
     def test_serialize_bag_of_words_embedder(self):
         embedder_1 = BagOfWordsEmbedder()
         embedder_2 = self.serialization_round_trip(embedder_1, "bow.pk")
+        self.assertEqual(embedder_1, embedder_2)
         embedding_1 = embedder_1.encode(self.texts)
         embedding_2 = embedder_2.encode(self.texts)
         assert_array_equal(embedding_1, embedding_2)
@@ -69,6 +72,7 @@ class TestTextSerialization(TestCase):
     def test_serialize_text_sequence_embedder(self):
         embedder_1 = TextSequenceEmbedder(10000, 50)
         embedder_2 = self.serialization_round_trip(embedder_1, "seq.pk")
+        self.assertEqual(embedder_1, embedder_2)
         embedding_1 = embedder_1.encode(self.texts)
         embedding_2 = embedder_2.encode(self.texts)
         assert_array_equal(embedding_1, embedding_2)

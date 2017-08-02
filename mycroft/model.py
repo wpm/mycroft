@@ -7,7 +7,7 @@ import sys
 import textwrap
 from io import StringIO
 
-from .text import TextSequenceEmbedder, longest_text
+from .text import TextSequenceEmbedder, text_statistics
 
 
 def load_embedding_model(model_directory):
@@ -236,14 +236,52 @@ class TextEmbeddingClassifier:
                                     **additional_options(name))
 
 
-class RNNClassifier(TextEmbeddingClassifier):
+class SequentialTextEmbeddingMixin:
+    """
+    This is a mixin that adds functionality common to embedding classifiers that operate on sequences of word
+    embeddings and use an embedding layer on its inputs. These classifiers take sequence length and vocabulary size
+    parameters, but their constructors must specify their default values as None, so that they don't have default
+    numeric values in console applications. If these values are unspecified on the command line, they are determined
+    from the training data.
+    """
+    TRAIN_EMBEDDINGS = False
+
+    @classmethod
+    def custom_command_line_options(cls):
+        return {
+            "sequence_length": {"help": "Maximum number of tokens per text (default use longest in the data)",
+                                "type": int, "metavar": "LENGTH"},
+            "vocabulary_size": {"help": "number of words in the vocabulary (default vocabulary size of data)",
+                                "type": int, "metavar": "SIZE"},
+            "train_embeddings": {"help": "train word embeddings? (default %s)" % cls.TRAIN_EMBEDDINGS}
+        }
+
+    @staticmethod
+    def parameters_from_training(sequence_length, vocabulary_size, training, language_model):
+        label_names = training[2]
+        if sequence_length is None or vocabulary_size is None:
+            max_length, max_vocabulary = text_statistics(training[0], language_model)
+            if sequence_length is None:
+                sequence_length = max_length
+            if vocabulary_size is None:
+                vocabulary_size = max_vocabulary
+        return label_names, sequence_length, vocabulary_size
+
+    @staticmethod
+    def embedding_layer(embedder, sequence_length, train_embeddings, **kwargs):
+        return embedder.embedding_layer_factory()(input_length=sequence_length, trainable=train_embeddings, **kwargs)
+
+
+class SequentialTextEmbeddingClassifier(SequentialTextEmbeddingMixin, TextEmbeddingClassifier):
+    pass
+
+
+class RNNClassifier(SequentialTextEmbeddingClassifier):
     """
     This model uses GloVe vectors to embed the text into matrices of size sequence length × 300, clipping or padding
     the first dimension for each individual text as needed. A recurrent neural network (either a GRU or an LSTM)
     converts these embeddings to a single vector which a softmax layer then uses to make a label prediction.
     """
-    VOCABULARY_SIZE = 20000
-    TRAIN_EMBEDDINGS = False
     RNN_UNITS = (64,)
     RNN_TYPE = "gru"
     BIDIRECTIONAL = False
@@ -253,13 +291,7 @@ class RNNClassifier(TextEmbeddingClassifier):
 
     @classmethod
     def custom_command_line_options(cls):
-        return {
-            "sequence_length": {"help": "Maximum number of tokens per text (default use longest in the data)",
-                                "type": int,
-                                "metavar": "LENGTH"},
-            "vocabulary_size": {"help": "number of words in the vocabulary (default %d)" % cls.VOCABULARY_SIZE,
-                                "metavar": "SIZE"},
-            "train_embeddings": {"help": "train word embeddings? (default %s)" % cls.TRAIN_EMBEDDINGS},
+        return {**super().custom_command_line_options(), **{
             "rnn_type": {"choices": ["gru", "lstm"], "help": "RNN type (default %s)" % cls.RNN_TYPE},
             "rnn_units": {
                 "help": "number of units in stacked RNN layers (default one layer with %d units)" % cls.RNN_UNITS[0],
@@ -269,24 +301,22 @@ class RNNClassifier(TextEmbeddingClassifier):
             "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.5f)" % cls.LEARNING_RATE},
             "language_model": {"help": "The spaCy language model to use (default '%s')" % cls.LANGUAGE_MODEL,
                                "metavar": "NAME"}
-        }
+        }}
 
-    def __init__(self, training,
-                 sequence_length=None, vocabulary_size=VOCABULARY_SIZE, train_embeddings=TRAIN_EMBEDDINGS,
+    def __init__(self, training, sequence_length=None, vocabulary_size=None,
+                 train_embeddings=SequentialTextEmbeddingClassifier.TRAIN_EMBEDDINGS,
                  language_model=LANGUAGE_MODEL, rnn_type=RNN_TYPE, rnn_units=RNN_UNITS, bidirectional=BIDIRECTIONAL,
                  dropout=DROPOUT, learning_rate=LEARNING_RATE):
         from keras.models import Sequential
         from keras.layers import Bidirectional, Dense, Dropout, GRU, LSTM
         from keras.optimizers import Adam
 
-        label_names = training[2]
-        if sequence_length is None:
-            sequence_length = longest_text(training[0], language_model)
-
+        label_names, sequence_length, vocabulary_size = self.parameters_from_training(sequence_length, vocabulary_size,
+                                                                                      training, language_model)
         embedder = TextSequenceEmbedder(vocabulary_size, sequence_length, language_model)
+
         model = Sequential()
-        model.add(embedder.embedding_layer_factory()(input_length=sequence_length, mask_zero=True,
-                                                     trainable=train_embeddings, name="embedding"))
+        model.add(self.embedding_layer(embedder, sequence_length, train_embeddings, mask_zero=True, name="embedding"))
         rnn_class = {"lstm": LSTM, "gru": GRU}[rnn_type]
         for i, units in enumerate(rnn_units, 1):
             name = "rnn-%d" % i
@@ -315,13 +345,12 @@ class RNNClassifier(TextEmbeddingClassifier):
             self.num_labels, self.rnn_units, bidi, self.dropout, self.embedder)
 
 
-class ConvolutionNetClassifier(TextEmbeddingClassifier):
+class ConvolutionNetClassifier(SequentialTextEmbeddingClassifier):
     """
     This model uses GloVe vectors to embed the text into matrices of size sequence length × 300, clipping or padding
     the first dimension for each individual text as needed. A 1-dimensional convolutional/max-pooling converts these
     embeddings to a single vector which a softmax layer then uses to make a label prediction.
     """
-    VOCABULARY_SIZE = 20000
     DROPOUT = 0.5
     FILTERS = 100
     KERNEL_SIZE = 3
@@ -331,35 +360,29 @@ class ConvolutionNetClassifier(TextEmbeddingClassifier):
 
     @classmethod
     def custom_command_line_options(cls):
-        return {
-            "sequence_length": {"help": "Maximum number of tokens per text (default use longest in the data)",
-                                "type": int,
-                                "metavar": "LENGTH"},
-            "vocabulary_size": {"help": "number of words in the vocabulary (default %d)" % cls.VOCABULARY_SIZE,
-                                "metavar": "SIZE"},
+        return {**super().custom_command_line_options(), **{
             "dropout": {"help": "Dropout rate (default %0.2f)" % cls.DROPOUT},
             "filters": {"help": "Number of filters (default %d)" % cls.FILTERS, "metavar": "FILTERS"},
             "kernel_size": {"help": "Size of kernel (default %d)" % cls.KERNEL_SIZE, "metavar": "SIZE"},
             "pool_factor": {"help": "Pooling downscale factor (default %d)" % cls.POOL_FACTOR, "metavar": "FACTOR"},
             "learning_rate": {"metavar": "RATE", "help": "learning rate (default %0.5f)" % cls.LEARNING_RATE},
             "language_model": {"help": "Language model (default %s)" % cls.LANGUAGE_MODEL, "metavar": "MODEL"}
-        }
+        }}
 
-    def __init__(self, training,
-                 sequence_length=None, vocabulary_size=VOCABULARY_SIZE, dropout=DROPOUT, filters=FILTERS,
+    def __init__(self, training, sequence_length=None, vocabulary_size=None,
+                 train_embeddings=SequentialTextEmbeddingClassifier.TRAIN_EMBEDDINGS, dropout=DROPOUT, filters=FILTERS,
                  kernel_size=KERNEL_SIZE, pool_factor=POOL_FACTOR, learning_rate=LEARNING_RATE,
                  language_model=LANGUAGE_MODEL):
         from keras.layers import Dropout, Conv1D, Flatten, MaxPooling1D, Dense
         from keras.models import Sequential
         from keras.optimizers import Adam
 
-        label_names = training[2]
-        if sequence_length is None:
-            sequence_length = longest_text(training[0], language_model)
+        label_names, sequence_length, vocabulary_size = self.parameters_from_training(sequence_length, vocabulary_size,
+                                                                                      training, language_model)
         embedder = TextSequenceEmbedder(vocabulary_size, sequence_length, language_model)
 
         model = Sequential()
-        model.add(embedder.embedding_layer_factory()(input_length=sequence_length, trainable=False, name="embedding"))
+        model.add(self.embedding_layer(embedder, sequence_length, train_embeddings, name="embedding"))
         model.add(Conv1D(filters, kernel_size, padding="valid", activation="relu", strides=1, name="convolution"))
         model.add(MaxPooling1D(pool_size=pool_factor, name="pooling"))
         model.add(Flatten(name="flatten"))

@@ -35,7 +35,7 @@ setup(
     url="https://github.com/wpm/mycroft",
     license="MIT",
     keywords="lstm keras spacy machine-learning natural-language-processing rnn word-embeddings",
-    python_requires=">=3.2",
+    python_requires=">=3.5",
     classifiers=[
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",

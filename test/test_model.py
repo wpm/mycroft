@@ -38,7 +38,7 @@ class TestModel(TestCase):
         self.embedding_model_train_without_validation(model)
 
     def test_rnn(self):
-        model = RNNClassifier((self.texts, self.labels, self.label_names))
+        model = RNNClassifier((self.texts, self.labels, self.label_names), sequence_length=50, vocabulary_size=20000)
         self.assertEqual(2, model.num_labels)
         self.assertEqual(0.5, model.dropout)
         self.assertEqual((64,), model.rnn_units)
@@ -46,7 +46,8 @@ class TestModel(TestCase):
         self.embedding_model_train_predict_evaluate(model)
 
     def test_multilayer_rnn(self):
-        model = RNNClassifier((self.texts, self.labels, self.label_names), rnn_units=(32, 64, 32))
+        model = RNNClassifier((self.texts, self.labels, self.label_names),
+                              sequence_length=50, vocabulary_size=20000, rnn_units=(32, 64, 32))
         self.assertEqual(2, model.num_labels)
         self.assertEqual(0.5, model.dropout)
         self.assertEqual((32, 64, 32), model.rnn_units)
@@ -54,7 +55,8 @@ class TestModel(TestCase):
         self.embedding_model_train_predict_evaluate(model)
 
     def test_convolution(self):
-        model = ConvolutionNetClassifier((self.texts, self.labels, self.label_names))
+        model = ConvolutionNetClassifier((self.texts, self.labels, self.label_names),
+                                         sequence_length=50, vocabulary_size=20000)
         self.assertEqual(2, model.num_labels)
         self.assertEqual(100, model.filters)
         self.assertEqual(3, model.kernel_size)

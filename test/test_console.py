@@ -38,6 +38,11 @@ class TestConsole(TestCase):
         self.run_command("predict %s %s" % (self.model_directory, self.data_filename))
         self.run_command("evaluate %s %s" % (self.model_directory, self.data_filename))
 
+    def test_conv(self):
+        self.run_command("train conv %s --save-model %s --logging none" % (self.data_filename, self.model_directory))
+        model = load_embedding_model(self.model_directory)
+        self.assertIsInstance(model, ConvolutionNetClassifier)
+
     def test_non_default_sequence_length(self):
         self.run_command("train conv %s --save-model %s --logging none --sequence-length 17" % (
             self.data_filename, self.model_directory))
