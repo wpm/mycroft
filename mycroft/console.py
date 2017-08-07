@@ -132,10 +132,11 @@ def training_argument_groups():
     training_group.add_argument("--epochs", type=int, default=TextEmbeddingClassifier.EPOCHS,
                                 help="maximum number of training epochs (default %d)" % TextEmbeddingClassifier.EPOCHS)
     training_group.add_argument("--early-stop", metavar="EPOCHS", type=int,
-                                help="number of epochs with no improvement after which to stop (default no early stop)")
+                                help="number of epochs with no improvement after which to stop (default %d)"
+                                     % TextEmbeddingClassifier.EARLY_STOP)
     training_group.add_argument("--reduce", metavar="EPOCHS", type=int,
                                 help="number of epochs with no improvement after which to reduce the learning rate " +
-                                     "(default no change to the learning rate)")
+                                     "(default %d)" % TextEmbeddingClassifier.REDUCE)
     training_group.add_argument("--batch-size", metavar="SIZE", type=int, default=TextEmbeddingClassifier.BATCH_SIZE,
                                 help="batch size (default %d)" % TextEmbeddingClassifier.BATCH_SIZE)
     training_group.add_argument("--save-model", metavar="DIRECTORY",

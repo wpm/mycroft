@@ -40,7 +40,9 @@ class TextEmbeddingClassifier:
     Derived classes may optionally supply a CUSTOM_COMMAND_LINE_OPTIONS dictionary, which specifies additional keyword
     arguments to provide to the argparse.addArgument command.
     """
-    EPOCHS = 10
+    EPOCHS = 100
+    EARLY_STOP = 10
+    REDUCE = 5
     BATCH_SIZE = 32
 
     # Names of files created in the model directory.
@@ -80,8 +82,9 @@ class TextEmbeddingClassifier:
         del d["model"]
         return d
 
-    def train(self, texts, labels, epochs=EPOCHS, early_stop=8, reduce=4, batch_size=32, validation_fraction=None,
-              validation_data=None, model_directory=None, tensor_board_directory=None, verbose=1):
+    def train(self, texts, labels, epochs=EPOCHS, early_stop=EARLY_STOP, reduce=REDUCE, batch_size=BATCH_SIZE,
+              validation_fraction=None, validation_data=None, model_directory=None, tensor_board_directory=None,
+              verbose=1):
         from keras.callbacks import EarlyStopping, ReduceLROnPlateau, TensorBoard
 
         def model_filename():
