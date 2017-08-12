@@ -5,7 +5,7 @@ import tempfile
 from unittest import TestCase
 
 import numpy
-from mycroft.text import text_parser, BagOfWordsEmbedder, TextSequenceEmbedder, Embedder, text_statistics
+from mycroft.text import text_parser, BagOfWordsEmbedder, TextSequenceEmbedder, Embedder, maximum_text_length
 from numpy.testing import assert_array_equal
 
 
@@ -19,10 +19,8 @@ class TestText(TestCase):
         self.assertEqual(english_1, english_2)
 
     def test_text_statistics(self):
-        longest_text, vocabulary_size = text_statistics(["Jabberwocky", "the cat is in the hat", "the dog is tired"])
-        self.assertEqual(6, longest_text)
-        # "Jabberwocky" does not have an embedding vector.
-        self.assertEqual(7, vocabulary_size)
+        max_length = maximum_text_length(["Jabberwocky", "the cat is in the hat", "the dog is tired"])
+        self.assertEqual(6, max_length)
 
     def test_base_class(self):
         embedder = Embedder()
@@ -41,13 +39,12 @@ class TestText(TestCase):
 
     def test_text_sequence_embedder(self):
         embedder = TextSequenceEmbedder(10000, 50)
-        self.assertEqual("Text sequence embedder: core_web_sm, embedding matrix (10000, 300)",
-                         str(embedder))
+        self.assertEqual("Text sequence embedder: core_web_sm, embedding matrix (10001, 300)", str(embedder))
         self.assertEqual("en", embedder.language_model)
         self.assertEqual(300, embedder.embedding_size)
         self.assertEqual(10000, embedder.vocabulary_size)
         self.assertTrue(hasattr(embedder, "embedding_matrix"))
-        self.assertEqual((10000, 300), embedder.embedding_matrix.shape)
+        self.assertEqual((10001, 300), embedder.embedding_matrix.shape)
         embedding = embedder.encode(self.texts)
         self.assertEqual((2, 50), embedding.shape)
         self.assertEqual(numpy.dtype("int32"), embedding.dtype)

@@ -7,7 +7,7 @@ import sys
 import textwrap
 from io import StringIO
 
-from .text import TextSequenceEmbedder, text_statistics
+from .text import TextSequenceEmbedder, maximum_text_length
 
 
 def load_embedding_model(model_directory):
@@ -254,20 +254,17 @@ class SequentialTextEmbeddingMixin:
         return {
             "sequence_length": {"help": "Maximum number of tokens per text (default use longest in the data)",
                                 "type": int, "metavar": "LENGTH"},
-            "vocabulary_size": {"help": "number of words in the vocabulary (default vocabulary size of data)",
-                                "type": int, "metavar": "SIZE"},
+            "vocabulary_size": {
+                "help": "number of words in the vocabulary (default use all types for which we have embeddings)",
+                "type": int, "metavar": "SIZE"},
             "train_embeddings": {"help": "train word embeddings? (default %s)" % cls.TRAIN_EMBEDDINGS}
         }
 
     @staticmethod
     def parameters_from_training(sequence_length, vocabulary_size, training, language_model):
         label_names = training[2]
-        if sequence_length is None or vocabulary_size is None:
-            max_length, max_vocabulary = text_statistics(training[0], language_model)
-            if sequence_length is None:
-                sequence_length = max_length
-            if vocabulary_size is None:
-                vocabulary_size = max_vocabulary
+        if sequence_length is None:
+            sequence_length = maximum_text_length(training[0], language_model)
         return label_names, sequence_length, vocabulary_size
 
     @staticmethod

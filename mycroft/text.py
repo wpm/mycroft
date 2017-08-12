@@ -7,23 +7,21 @@ from functools import partial
 import numpy
 
 
-def text_statistics(texts, language_model="en"):
+def maximum_text_length(texts, language_model="en"):
     """
-    Extract statistics from text for use as model hyper-parameters.
+    The number of tokens in the longest text in a set of texts.
 
     :param texts: texts in training data
     :type texts: sequence of str
     :param language_model: spaCy language model name
     :type language_model: str
-    :return: size of the longest text in the data and the number of unique types that have embedding vectors
-    :rtype: (int, int)
+    :return: size of the longest text in the data
+    :rtype: int
     """
     longest_text = 0
-    vocabulary = set()
     for document in text_parser(language_model).pipe(texts):
         longest_text = max(len(document), longest_text)
-        vocabulary |= set(token.orth_ for token in document if token.has_vector)
-    return longest_text, len(vocabulary)
+    return longest_text
 
 
 class Embedder:
@@ -90,24 +88,21 @@ class TextSequenceEmbedder(Embedder):
     Encode a sequence of words as a matrix of their embeddings.
     """
 
-    def __init__(self, vocabulary_size, sequence_length, language_model="en"):
+    def __init__(self, max_vocabulary_size, sequence_length, language_model="en"):
         super(self.__class__, self).__init__(language_model)
-        self.vocabulary_size = vocabulary_size
+        self.max_vocabulary_size = max_vocabulary_size
         self.sequence_length = sequence_length
         self.vocabulary, self.embedding_matrix = self.initialize_embeddings()
+        self.vocabulary_size = len(self.vocabulary)
 
     def initialize_embeddings(self):
-        def lexeme_embeddings():
-            lexemes = sorted((lexeme for lexeme in self.text_parser.vocab if lexeme.has_vector),
-                             key=operator.attrgetter("rank"))[:self.vocabulary_size - 1]
-            for i, lexeme in enumerate(lexemes, 1):
-                yield i, lexeme.orth_, lexeme.vector
-
+        lexemes = sorted((lexeme for lexeme in self.text_parser.vocab if lexeme.has_vector),
+                         key=operator.attrgetter("rank"))[:self.max_vocabulary_size]
         vocabulary = {}
-        embedding_matrix = numpy.zeros((self.vocabulary_size, self.text_parser.vocab.vectors_length))
-        for index, token, vector in lexeme_embeddings():
-            embedding_matrix[index] = vector
-            vocabulary[token] = index
+        embedding_matrix = numpy.zeros((len(lexemes) + 1, self.text_parser.vocab.vectors_length))
+        for index, lexeme in enumerate(lexemes, 1):
+            embedding_matrix[index] = lexeme.vector
+            vocabulary[lexeme.orth_] = index
         return vocabulary, embedding_matrix
 
     def __eq__(self, other):
@@ -138,7 +133,7 @@ class TextSequenceEmbedder(Embedder):
 
     def embedding_layer_factory(self):
         from keras.layers import Embedding
-        return partial(Embedding, self.vocabulary_size, self.embedding_size, weights=[self.embedding_matrix])
+        return partial(Embedding, self.vocabulary_size + 1, self.embedding_size, weights=[self.embedding_matrix])
 
     def __repr__(self):
         return "Text sequence embedder: %s, embedding matrix %s" % (
