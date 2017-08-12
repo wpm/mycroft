@@ -7,6 +7,7 @@ import sys
 import textwrap
 from io import StringIO
 
+import mycroft
 from .text import TextSequenceEmbedder, maximum_text_length
 
 
@@ -75,7 +76,7 @@ class TextEmbeddingClassifier:
             sys.stdout = old_stdout
             return s.getvalue()
 
-        return "%s\n\n%s" % (repr(self), model_topology())
+        return "%s\n\n%s\nVersion %s" % (repr(self), model_topology(), mycroft.__version__)
 
     def __getstate__(self):
         d = self.__dict__.copy()
