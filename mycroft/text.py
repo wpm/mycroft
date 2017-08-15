@@ -37,6 +37,7 @@ class Embedder:
         :param language_model: the name of the spaCy language model to use
         :type language_model: str
         """
+        self.language_model = language_model
         self.text_parser = text_parser(language_model)
 
     def __eq__(self, other):
@@ -50,10 +51,6 @@ class Embedder:
     def __setstate__(self, d):
         d["text_parser"] = text_parser(d["text_parser"])
         self.__dict__.update(d)
-
-    @property
-    def language_model(self):
-        return self.text_parser.vocab.lang
 
     @property
     def embedding_size(self):
